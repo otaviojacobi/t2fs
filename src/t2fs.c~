@@ -18,7 +18,7 @@
 // Loading disk.
 void load_bootBlock(void);
 struct t2fs_4tupla * load_register_at_sector(const int sector);
-struct t2fs_4tupla **load_MFTArea(const int MFT_register_amt, const int MFT_beginning_sector);
+struct t2fs_4tupla **load_MFTArea(const int MFT_register_amt, const int MFT_start_sector);
 
 // Debugging.
 void print_bootBlock(void);
@@ -31,30 +31,42 @@ int main() {
 	load_bootBlock();	
 	//print_bootBlock();
 
-	int MFT_beginning_sector = bootBlock.blockSize;
+	int MFT_start_sector = bootBlock.blockSize;
 	int MFT_size = SECTOR_SIZE * bootBlock.blockSize * bootBlock.MFTBlocksSize; //Tam_setor * setores_por_bloco * nr_de_blocos = 2097152			    
 	int MFT_register_size = TUPLES_PER_REGISTER*sizeof(struct t2fs_4tupla);     // Ou seja, o MFT tem 2097152bytes, e sabemos que cada registro (32*tupla_size(16) = 512)
 	int MFT_register_amt = MFT_size/MFT_register_size;		 	    // Logo, 2097152/512 -> 4096(2^12) registros !! (8192 setores ou 2048 blocos)
 		
 	struct t2fs_4tupla **MFT_registers;                                   // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
-	MFT_registers = load_MFTArea(MFT_register_amt, MFT_beginning_sector); //                                  [   0-4095  ][  0-31  ] -> NR_REGISTER relativo ao MFT (+1 em relação ao geral)
+	MFT_registers = load_MFTArea(MFT_register_amt, MFT_start_sector); //                                  [   0-4095  ][  0-31  ] -> NR_REGISTER relativo ao MFT (+1 em relação ao geral)
 					          				                      	
 	print_4tupla(MFT_registers[0][0]);print_4tupla(MFT_registers[1][0]);
 
-	int bitMap_starter_sector = bootBlock.blockSize * MFT_registers[0][0].logicalBlockNumber;
+	int homedir_start_sector = bootBlock.blockSize * MFT_registers[0][0].logicalBlockNumber;
 
-	//printf("%d\n", bitMap_starter_sector);
-
-	char file_buffer[256];
+	char file_buffer[SECTOR_SIZE];
 	read_sector(8200, file_buffer);
 
 	struct t2fs_record bitmap;
+	struct t2fs_record bitmap2;
+	struct t2fs_record bitmap3;
 
 	memcpy((void*) &(bitmap.TypeVal), 	 (void*) &file_buffer[0],  1  );
 	memcpy((void*) &(bitmap.name), 		 (void*) &file_buffer[1],  51 );
 	memcpy((void*) &(bitmap.blocksFileSize), (void*) &file_buffer[52], 4  );
 	memcpy((void*) &(bitmap.bytesFileSize),  (void*) &file_buffer[56], 4  );
 	memcpy((void*) &(bitmap.MFTNumber), 	 (void*) &file_buffer[60], 4  );
+
+	memcpy((void*) &(bitmap2.TypeVal), 	 (void*) &file_buffer[64],  1  );
+	memcpy((void*) &(bitmap2.name),          (void*) &file_buffer[65],  51 );
+	memcpy((void*) &(bitmap2.blocksFileSize), (void*) &file_buffer[116], 4  );
+	memcpy((void*) &(bitmap2.bytesFileSize),  (void*) &file_buffer[120], 4  );
+	memcpy((void*) &(bitmap2.MFTNumber), 	 (void*) &file_buffer[124], 4  );
+
+	memcpy((void*) &(bitmap3.TypeVal), 	 (void*) &file_buffer[128],  1  );
+	memcpy((void*) &(bitmap3.name),          (void*) &file_buffer[129],  51 );
+	memcpy((void*) &(bitmap3.blocksFileSize), (void*) &file_buffer[180], 4  );
+	memcpy((void*) &(bitmap3.bytesFileSize),  (void*) &file_buffer[184], 4  );
+	memcpy((void*) &(bitmap3.MFTNumber), 	 (void*) &file_buffer[188], 4  );
 
 	
 	//printf("%d\n", searchBitmap2(0));
@@ -64,7 +76,21 @@ int main() {
 	printf("%d\n", bitmap.blocksFileSize);
 	printf("%d\n", bitmap.bytesFileSize);
 	printf("%d\n", bitmap.MFTNumber);
+
+	printf("%d\n", bitmap2.TypeVal);
+	printf("%s\n", bitmap2.name);
+	printf("%d\n", bitmap2.blocksFileSize);
+	printf("%d\n", bitmap2.bytesFileSize);
+	printf("%d\n", bitmap2.MFTNumber);
+
+	printf("%d\n", bitmap3.TypeVal);
+	printf("%s\n", bitmap3.name);
+	printf("%d\n", bitmap3.blocksFileSize);
+	printf("%d\n", bitmap3.bytesFileSize);
+	printf("%d\n", bitmap3.MFTNumber);
 	
+
+	printf("%d", sizeof(struct t2fs_record));
 
 	return 0;
 }
@@ -97,11 +123,11 @@ struct t2fs_4tupla* load_register_at_sector(const int sector) {
 	return mft_register;
 }
 
-struct t2fs_4tupla** load_MFTArea(const int MFT_register_amt, const int MFT_beginning_sector) {
+struct t2fs_4tupla** load_MFTArea(const int MFT_register_amt, const int MFT_start_sector) {
 
 	struct t2fs_4tupla **MFT_registers = (struct t2fs_4tupla**)malloc(MFT_register_amt * sizeof(struct t2fs_4tupla*));
 	
-	int MFT_current_sector = MFT_beginning_sector;
+	int MFT_current_sector = MFT_start_sector;
 	int i;
 	for(i=0;i<MFT_register_amt;i++) {
 
