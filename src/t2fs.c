@@ -53,13 +53,13 @@ int main() {
 
 	int homedir_start_sector = blockToFirstSector(MFT_registers[1][0].logicalBlockNumber); // This is no way completed. We need to extend.
 
-	struct t2fs_record* records = readRecordsAtSector(homedir_start_sector);
 
 	char file_buffer[SECTOR_SIZE];
+	
+	create2("FILEEz");
 
-	//get_new_register();
-
-	/*
+	struct t2fs_record* records = readRecordsAtSector(homedir_start_sector);
+	
 	int i;
 	int current_file_sector;
 	char* current_file_content;
@@ -81,7 +81,7 @@ int main() {
 
 	//printf("%d\n", searchBitmap2(0));
 
-	*/
+	
 	return 0;
 }
 
@@ -89,22 +89,69 @@ FILE2 create2 (char *filename) {
 	// "/dir1/dir2/nome" -> hard mkdir (?)
         // "/nome" -> criar MFT, criar record
 	struct t2fs_record new_record;
-	int first_register_index;
+
+	int homedir_start_sector = blockToFirstSector(MFT_registers[1][0].logicalBlockNumber);
+
+	struct t2fs_record* records = readRecordsAtSector(homedir_start_sector);
+
+	char file_buffer[SECTOR_SIZE];
+
+	int i;
+	int current_file_sector;
+	char* current_file_content;
+
+	for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+		if ( !(isValidRecord(records[i])) ) {
+			break;
+		}
+	}
+
+//	records[0].TypeVal = 23;
+	
+	records[i].TypeVal = 1; 
+    strcpy(records[i].name, filename); 	/* Nome do arquivo. : string com caracteres ASCII (0x21 até 0x7A), case sensitive.             */
+    records[i].blocksFileSize = 0; 		/* Tamanho do arquivo, expresso em número de blocos de dados */
+    records[i].bytesFileSize = 0;  		/* Tamanho do arquivo. Expresso em número de bytes.          */
+    records[i].MFTNumber = get_new_register();
+
+
+	unsigned char *buffer;
+	
+	buffer = (unsigned char *)malloc(sizeof(records));
+
+	memcpy((void*) &(buffer), (void*) &records,  sizeof(records) );
+
+	write_sector (homedir_start_sector, buffer);
 
 	//first_register_index = get_new_register();
-	//MFT_registers[first_register_index] = atributeType = 0
+	MFT_registers[records[i].MFTNumber][0].atributeType = 0;
+	MFT_registers[records[i].MFTNumber][0].virtualBlockNumber = 0;
+
+	MFT_registers[records[i].MFTNumber][0].logicalBlockNumber = searchBitmap2(0);
+	setBitmap2 (MFT_registers[records[i].MFTNumber][0].logicalBlockNumber, 1);
+
+	MFT_registers[records[i].MFTNumber][0].numberOfContiguosBlocks = 0;
+
+	free(buffer);
+	buffer = (unsigned char *)malloc(sizeof(MFT_registers[records[i].MFTNumber])/2);
+
+	memcpy((void*) &(buffer), (void*) &(MFT_registers[records[i].MFTNumber]), sizeof(MFT_registers[records[i].MFTNumber])/2);
+
+	write_sector ( (4 + ((records[i].MFTNumber)*2)), buffer);
+
+	printf("ola\n");
+	
 	//DWORD	virtualBlockNumber;		// VBN inicial k ou registro MFT adicional
 	//DWORD	logicalBlockNumber;		// LBN inicial j
 	//DWORD	numberOfContiguosBlocks;
 
 
-	new_record.TypeVal = 1; 	// Arquivo Regular
-	strcpy(new_record.name, filename);
-	new_record.blocksFileSize = 0;
-	new_record.bytesFileSize = 0;
-	new_record.MFTNumber = get_new_register();
+//	new_record.TypeVal = 1; 	// Arquivo Regular
+//	strcpy(new_record.name, filename);
+//	new_record.blocksFileSize = 0;
+//	new_record.bytesFileSize = 0;
+//	new_record.MFTNumber = get_new_register();
 
-		searchBitmap2(0);
 }
 
 int get_new_register(void) {
