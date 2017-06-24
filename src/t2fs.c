@@ -105,15 +105,8 @@ FILE2 create2 (char *filename) {
 			break;
 		}
 	}
-
-//	records[0].TypeVal = 23;
 	
-	records[i].TypeVal = 1; 
-    strcpy(records[i].name, filename); 	/* Nome do arquivo. : string com caracteres ASCII (0x21 até 0x7A), case sensitive.             */
-    records[i].blocksFileSize = 0; 		/* Tamanho do arquivo, expresso em número de blocos de dados */
-    records[i].bytesFileSize = 0;  		/* Tamanho do arquivo. Expresso em número de bytes.          */
-    records[i].MFTNumber = get_new_register();
-
+	create_new_record(&records[i], filename);
 
 	unsigned char *buffer;
 	
@@ -123,14 +116,7 @@ FILE2 create2 (char *filename) {
 
 	write_sector (homedir_start_sector, buffer);
 
-	//first_register_index = get_new_register();
-	MFT_registers[records[i].MFTNumber][0].atributeType = 0;
-	MFT_registers[records[i].MFTNumber][0].virtualBlockNumber = 0;
-
-	MFT_registers[records[i].MFTNumber][0].logicalBlockNumber = searchBitmap2(0);
-	setBitmap2 (MFT_registers[records[i].MFTNumber][0].logicalBlockNumber, 1);
-
-	MFT_registers[records[i].MFTNumber][0].numberOfContiguosBlocks = 0;
+	create_new_register(records[i].MFTNumber);
 
 	free(buffer);
 	buffer = (unsigned char *)malloc(sizeof(MFT_registers[records[i].MFTNumber])/2);
@@ -138,20 +124,27 @@ FILE2 create2 (char *filename) {
 	memcpy((void*) &(buffer), (void*) &(MFT_registers[records[i].MFTNumber]), sizeof(MFT_registers[records[i].MFTNumber])/2);
 
 	write_sector ( (4 + ((records[i].MFTNumber)*2)), buffer);
+}
 
-	printf("ola\n");
-	
-	//DWORD	virtualBlockNumber;		// VBN inicial k ou registro MFT adicional
-	//DWORD	logicalBlockNumber;		// LBN inicial j
-	//DWORD	numberOfContiguosBlocks;
+int create_new_register(int index) {
+	MFT_registers[index][0].atributeType = 0;
+	MFT_registers[index][0].virtualBlockNumber = 0;
 
+	MFT_registers[index][0].logicalBlockNumber = searchBitmap2(0);
+	setBitmap2 (MFT_registers[index][0].logicalBlockNumber, 1);
 
-//	new_record.TypeVal = 1; 	// Arquivo Regular
-//	strcpy(new_record.name, filename);
-//	new_record.blocksFileSize = 0;
-//	new_record.bytesFileSize = 0;
-//	new_record.MFTNumber = get_new_register();
+	MFT_registers[index][0].numberOfContiguosBlocks = 0;
 
+}
+
+int create_new_record(struct t2fs_record *new_record, char *filename) {
+	new_record->TypeVal = 1; 
+    strcpy(new_record->name, filename); 	/* Nome do arquivo. : string com caracteres ASCII (0x21 até 0x7A), case sensitive.             */
+    new_record->blocksFileSize = 0; 		/* Tamanho do arquivo, expresso em número de blocos de dados */
+    new_record->bytesFileSize = 0;  		/* Tamanho do arquivo. Expresso em número de bytes.          */
+    new_record->MFTNumber = get_new_register();
+
+	return 0;
 }
 
 int get_new_register(void) {
