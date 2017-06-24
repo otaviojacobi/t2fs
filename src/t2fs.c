@@ -127,13 +127,18 @@ FILE2 create2 (char *filename) {
 }
 
 int create_new_register(int index) {
-	MFT_registers[index][0].atributeType = 0;
+	MFT_registers[index][0].atributeType = 1;
 	MFT_registers[index][0].virtualBlockNumber = 0;
 
 	MFT_registers[index][0].logicalBlockNumber = searchBitmap2(0);
 	setBitmap2 (MFT_registers[index][0].logicalBlockNumber, 1);
 
 	MFT_registers[index][0].numberOfContiguosBlocks = 0;
+
+	MFT_registers[index][1].atributeType = 1;
+	MFT_registers[index][1].virtualBlockNumber = 0;
+	MFT_registers[index][1].logicalBlockNumber = 0;
+	MFT_registers[index][1].numberOfContiguosBlocks = 0;
 
 }
 

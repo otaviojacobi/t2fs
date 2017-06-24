@@ -14,7 +14,13 @@ INC_DIR=./include
 BIN_DIR=./bin
 SRC_DIR=./src
 
-all: compile static
+all: format compile static
+
+notformat: compile static
+
+format:
+	rm t2fs_disk.dat
+	cp ../t2fs_disk.dat ../t2fs
 
 compile: $(SRC_DIR)/t2fs.c
 	$(CC) -c $(SRC_DIR)/t2fs.c

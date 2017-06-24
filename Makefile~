@@ -16,12 +16,16 @@ SRC_DIR=./src
 
 all: compile static
 
+format:
+	rm t2fs_disk.dat
+	cp ../t2fs_disk.dat ../t2fs
+
 compile: $(SRC_DIR)/t2fs.c
 	$(CC) -c $(SRC_DIR)/t2fs.c
 	mv t2fs.o $(BIN_DIR)
 
-static:	$(BIN_DIR)/t2fs.o $(LIB_DIR)/bitmap.o $(LIB_DIR)/apidisk.o
-	$(CC) -o t2fs $(BIN_DIR)/t2fs.o $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap.o
+static:	$(BIN_DIR)/t2fs.o $(LIB_DIR)/bitmap2.o $(LIB_DIR)/apidisk.o
+	$(CC) -o t2fs $(BIN_DIR)/t2fs.o $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o
 
 
 clean:
