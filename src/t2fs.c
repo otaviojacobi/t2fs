@@ -106,7 +106,7 @@ FILE2 create2 (char *filename) {
 		}
 	}
 	
-	create_new_record(&records[i], filename);
+	create_new_record(&records[i], filename, 1);
 
 	unsigned char *buffer;
 	
@@ -123,10 +123,15 @@ FILE2 create2 (char *filename) {
 
 	memcpy((void*) &(buffer), (void*) &(MFT_registers[records[i].MFTNumber]), sizeof(MFT_registers[records[i].MFTNumber])/2);
 
-	write_sector ( (4 + ((records[i].MFTNumber)*2)), buffer);
+	write_sector ( register_to_sector(records[i].MFTNumber), buffer);
+}
+
+int register_to_sector(const int register_number) {
+	return bootBlock.blockSize + (register_number * (TUPLES_PER_REGISTER*sizeof(struct t2fs_4tupla)) / SECTOR_SIZE); // (4 + register_number*2)
 }
 
 int create_new_register(int index) {
+
 	MFT_registers[index][0].atributeType = 1;
 	MFT_registers[index][0].virtualBlockNumber = 0;
 
@@ -139,11 +144,13 @@ int create_new_register(int index) {
 	MFT_registers[index][1].virtualBlockNumber = 0;
 	MFT_registers[index][1].logicalBlockNumber = 0;
 	MFT_registers[index][1].numberOfContiguosBlocks = 0;
+	
+	return 0;
 
 }
 
-int create_new_record(struct t2fs_record *new_record, char *filename) {
-	new_record->TypeVal = 1; 
+int create_new_record(struct t2fs_record *new_record, char *filename, int type) {
+	new_record->TypeVal = type; 
     strcpy(new_record->name, filename); 	/* Nome do arquivo. : string com caracteres ASCII (0x21 até 0x7A), case sensitive.             */
     new_record->blocksFileSize = 0; 		/* Tamanho do arquivo, expresso em número de blocos de dados */
     new_record->bytesFileSize = 0;  		/* Tamanho do arquivo. Expresso em número de bytes.          */
