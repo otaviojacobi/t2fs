@@ -48,8 +48,7 @@ int main() {
 	int MFT_size = SECTOR_SIZE * bootBlock.blockSize * bootBlock.MFTBlocksSize; //Tam_setor * setores_por_bloco * nr_de_blocos = 2097152 BYTES
 	int MFT_register_size = TUPLES_PER_REGISTER*sizeof(struct t2fs_4tupla);     // Ou seja, o MFT tem 2097152bytes, e sabemos que cada registro (32*tupla_size(16) = 512)
 	MFT_register_amt = MFT_size/MFT_register_size;		 	    // Logo, 2097152/512 -> 4096(2^12) registros !! (8192 setores ou 2048 blocos)
-
-	struct t2fs_4tupla **MFT_registers;                                   // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
+                                // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
 	MFT_registers = load_MFTArea(MFT_register_amt, MFT_start_sector); //                                      [   0-4095  ][  0-31  ] -> NR_REGISTER relativo ao MFT (+1 depois do bloco de boot)
 
 	int homedir_start_sector = blockToFirstSector(MFT_registers[1][0].logicalBlockNumber); // This is no way completed. We need to extend.
@@ -99,14 +98,11 @@ FILE2 create2 (char *filename) {
 
 int get_new_register(void) {
 
-	int i = 0;
-	for (i=0; i < MFT_register_amt ; i++){
-		printf("oi\n");
-		/*if (MFT_registers[i][0].atributeType == -1) {
-			printf("ACHOU: %d\n", i);
+	int i;
+	for (i=4; i < MFT_register_amt ; i++)
+		if (MFT_registers[i][0].atributeType == -1) {
 			return i;
-		}*/
-	}
+		}
 }
 
 void load_bootBlock(void) {

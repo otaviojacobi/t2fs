@@ -48,8 +48,7 @@ int main() {
 	int MFT_size = SECTOR_SIZE * bootBlock.blockSize * bootBlock.MFTBlocksSize; //Tam_setor * setores_por_bloco * nr_de_blocos = 2097152 BYTES
 	int MFT_register_size = TUPLES_PER_REGISTER*sizeof(struct t2fs_4tupla);     // Ou seja, o MFT tem 2097152bytes, e sabemos que cada registro (32*tupla_size(16) = 512)
 	MFT_register_amt = MFT_size/MFT_register_size;		 	    // Logo, 2097152/512 -> 4096(2^12) registros !! (8192 setores ou 2048 blocos)
-
-	struct t2fs_4tupla **MFT_registers;                                   // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
+                                // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
 	MFT_registers = load_MFTArea(MFT_register_amt, MFT_start_sector); //                                      [   0-4095  ][  0-31  ] -> NR_REGISTER relativo ao MFT (+1 depois do bloco de boot)
 
 	int homedir_start_sector = blockToFirstSector(MFT_registers[1][0].logicalBlockNumber); // This is no way completed. We need to extend.
@@ -58,7 +57,7 @@ int main() {
 
 	char file_buffer[SECTOR_SIZE];
 
-	get_new_register();
+	//get_new_register();
 
 	/*
 	int i;
@@ -90,24 +89,31 @@ FILE2 create2 (char *filename) {
 	// "/dir1/dir2/nome" -> hard mkdir (?)
         // "/nome" -> criar MFT, criar record
 	struct t2fs_record new_record;
+	int first_register_index;
+
+	//first_register_index = get_new_register();
+	//MFT_registers[first_register_index] = atributeType = 0
+	//DWORD	virtualBlockNumber;		// VBN inicial k ou registro MFT adicional
+	//DWORD	logicalBlockNumber;		// LBN inicial j
+	//DWORD	numberOfContiguosBlocks;
+
+
 	new_record.TypeVal = 1; 	// Arquivo Regular
 	strcpy(new_record.name, filename);
 	new_record.blocksFileSize = 0;
 	new_record.bytesFileSize = 0;
 	new_record.MFTNumber = get_new_register();
+
+		searchBitmap2(0);
 }
 
 int get_new_register(void) {
 
-	int i = 0;
-	for (i=0; i < MFT_register_amt ; i++){
-		printf("oi\n");
-		print_4tupla(MFT_registers[i][0]);
-		/*if (MFT_registers[i][0].atributeType == -1) {
-			printf("ACHOU: %d\n", i);
+	int i;
+	for (i=4; i < MFT_register_amt ; i++)
+		if (MFT_registers[i][0].atributeType == -1) {
 			return i;
-		}*/
-	}
+		}
 }
 
 void load_bootBlock(void) {
