@@ -56,37 +56,23 @@ int main() {
 
 	char file_buffer[SECTOR_SIZE];
 
-	create2("a");
-	create2("b");
-	create2("c");
-	create2("d");
-	create2("e");
-	create2("f");
-	create2("g");
-	create2("h");
-	create2("i");
-	create2("j");
-	create2("k");
-	create2("l");
-	create2("m");
-	create2("n");
-	create2("o");
-	create2("p");
-	create2("q");
-	create2("r");
-	create2("o");
-	create2("p");
-	create2("q");
-	create2("r");
-	create2("o");
-	create2("p");
-	create2("q");
-	create2("r");
-	create2("o");
-	create2("p");
-	create2("q");
-	create2("r");
+	
+	int l;
+	char *c;
+	for(l=0; l < 1000; l++) {
+		c = (char*)malloc(8);
+		c[0] = 'f';
+		c[1] = 'i';
+		c[2] = 'l';
+		c[3] = 'e';
+		c[4] = l/100 + 48;
+		c[5] = (l%100)/10 + 48;
+		c[6] = l%10 + 48;
+		c[7] = '\0';
+		create2(c);
+		//printf("CRIOU ESSE: %d\n", l);
 
+	}
 
 
 	struct t2fs_record* records;
@@ -95,35 +81,42 @@ int main() {
 	int current_file_sector;
 	char* current_file_content;
 
-	for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[1][z].atributeType != 0); z++) {
+	int index_register = 1;
+	while(MFT_registers[index_register][0].atributeType!=-1) {
 
-		start_block = MFT_registers[1][z].logicalBlockNumber;
-		start_sector = blockToFirstSector(start_block);
-		num_block_tupla = MFT_registers[1][z].numberOfContiguosBlocks;
+		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType != 0); z++) {
 
-		for ( k = 0; (k < num_block_tupla); k++) {
+			start_block = MFT_registers[index_register][z].logicalBlockNumber;
+			start_sector = blockToFirstSector(start_block);
+			num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
 
-			for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+			for ( k = 0; (k < num_block_tupla); k++) {
+
+				for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 	
-				records = readRecordsAtSector(start_sector + j);
+					records = readRecordsAtSector(start_sector + j);
 
-				for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
-					if ( isValidRecord(records[i]) ) {
+					for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+						if ( isValidRecord(records[i]) ) {
 		
-						current_file_sector = blockToFirstSector( MFT_registers[records[i].MFTNumber][0].logicalBlockNumber ); // FUCK THIS
-						read_sector(current_file_sector, file_buffer);							       // We find the opcode to stop.
+							current_file_sector = blockToFirstSector( MFT_registers[records[i].MFTNumber][0].logicalBlockNumber ); // FUCK THIS
+							read_sector(current_file_sector, file_buffer);							       // We find the opcode to stop.
 	
-						current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
+							current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
 	
-						printf("\nThe content of %s is: \n", records[i].name);
-						printf("%s", current_file_content);
+							printf("\n%s - ", records[i].name);
+							printf("%s", current_file_content);
+						}
 					}
+
+					free(records);
 				}
 
-				free(records);
 			}
-
 		}
+		
+			index_register = MFT_registers[index_register][31].virtualBlockNumber;
+		
 	}
 
 			//print_record(home_dir_file);print_record(home_dir_file2);
@@ -146,70 +139,118 @@ FILE2 create2 (char *filename) {
 
 	int i,j,k,z;
 	int found = FALSE;
+	int end_found = FALSE;
+	int end_register = -1;
 	int found_index_record = -1;
 	int found_index_sector = -1;
 	int current_file_sector;
 	char* current_file_content;
 
+
 	int start_block;
 	int start_sector;
 	int num_block_tupla;
 
-	for ( z = 0; (z < TUPLES_PER_REGISTER && !found && MFT_registers[1][z].atributeType != 0); z++) {
+	int index_register = 1;	
 
-		start_block = MFT_registers[1][z].logicalBlockNumber;
-		start_sector = blockToFirstSector(start_block);
-		num_block_tupla = MFT_registers[1][z].numberOfContiguosBlocks;
+	while (!found && !end_found) {
 
-		for ( k = 0; (k < num_block_tupla && !found); k++) {
-
-			for ( j = 0 ; (j < bootBlock.blockSize && !found) ; j++ ) {
+		for ( z = 0; (z < TUPLES_PER_REGISTER-1 && !found && MFT_registers[index_register][z].atributeType != 0); z++) {
+			//printf("INDEX REGISTER: %d\n", index_register);
+			start_block = MFT_registers[index_register][z].logicalBlockNumber;
+			start_sector = blockToFirstSector(start_block);
+			num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
 	
-				records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
+			for ( k = 0; (k < num_block_tupla && !found); k++) {
 	
-				for ( i = 0; (i < SECTOR_SIZE/sizeof(struct t2fs_record) && !found); i++ ) {
-					if ( !(isValidRecord(records[i])) ) {
-						found = TRUE;
-						found_index_record = i;
-						found_index_sector = j + k*bootBlock.blockSize;
+				for ( j = 0 ; (j < bootBlock.blockSize && !found) ; j++ ) {
+		
+					records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
+		
+					for ( i = 0; (i < SECTOR_SIZE/sizeof(struct t2fs_record) && !found); i++ ) {
+		/*				printf("\n--------\n");
+						printf("i: %d\n", i);
+						printf("j: %d\n", j);
+						printf("k: %d\n", k);
+						printf("z: %d\n", z);
+						printf("index_register: %d\n", index_register);
+						printf("--------\n"); */
+						if ( !(isValidRecord(records[i])) ) {
+							found = TRUE;
+							found_index_record = i;
+							found_index_sector = j + k*bootBlock.blockSize;
+						}
 					}
+					if (!found)
+						free(records);
 				}
-				if (!found)
-					free(records);
 			}
+		}
+	
+		if (z == TUPLES_PER_REGISTER -1 && !found) {
+			if (MFT_registers[index_register][z].atributeType == 2) {
+				index_register = MFT_registers[index_register][z].virtualBlockNumber;
+			}
+			else if (MFT_registers[index_register][z].atributeType == 0) {
+
+				MFT_registers[index_register][z].atributeType = 2;
+				
+				end_register = get_new_register();
+				create_new_register(end_register);
+
+				MFT_registers[index_register][z].virtualBlockNumber = end_register;
+							// ULTRA SUPER CAVALICE-EX //-2 ARCADE EDITION: 2017/1
+				MFT_registers[end_register][0].atributeType = 0;
+				index_register = end_register;
+				printf("\n\n\nLOUCURAS!!!\n");
+			}
+			else if (MFT_registers[index_register][z].atributeType == 0)
+				end_found = TRUE;
+		}
+		else if (MFT_registers[index_register][z].atributeType == 0) {
+			end_found = TRUE;
 		}
 	}
 
 	int new_block_index;
 	char buffer[SECTOR_SIZE];
-
+	
 	if (!found) {
-		new_block_index = searchBitmap2(0);
-		setBitmap2 (new_block_index, 1);
-//		if (new_block_index == 
-		MFT_registers[1][z].atributeType = 1;
-		MFT_registers[1][z].virtualBlockNumber = MFT_registers[1][z-1].virtualBlockNumber + MFT_registers[1][z-1].numberOfContiguosBlocks;
-		MFT_registers[1][z].logicalBlockNumber = new_block_index;
-		MFT_registers[1][z].numberOfContiguosBlocks = 1;
+
+		if(z < TUPLES_PER_REGISTER) {
+
+		//	printf("%d\n", z);
+			new_block_index = searchBitmap2(0);
+			setBitmap2 (new_block_index, 1);
+	//		if (new_block_index == CONFERIR CONTIGUIDADE
+			MFT_registers[index_register][z].atributeType = 1;
+			MFT_registers[index_register][z].virtualBlockNumber = MFT_registers[index_register][z-1].virtualBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks;
+			MFT_registers[index_register][z].logicalBlockNumber = new_block_index;
+			MFT_registers[index_register][z].numberOfContiguosBlocks = 1;
 		
-		MFT_registers[1][z+1].atributeType = 0;
-		MFT_registers[1][z+1].virtualBlockNumber = 0;
-		MFT_registers[1][z+1].logicalBlockNumber = 0;
-		MFT_registers[1][z+1].numberOfContiguosBlocks = 0;
+			MFT_registers[index_register][z+1].atributeType = 0;
+			MFT_registers[index_register][z+1].virtualBlockNumber = 0;
+			MFT_registers[index_register][z+1].logicalBlockNumber = 0;
+			MFT_registers[index_register][z+1].numberOfContiguosBlocks = 0;
 
-		memcpy((void*) buffer, (void*) &MFT_registers[1], SECTOR_SIZE);	
-		write_sector (register_to_sector(z), buffer);
+			memcpy((void*) buffer, (void*) &MFT_registers[index_register][0], SECTOR_SIZE);	
+			write_sector (register_to_sector(z), buffer);
 
-		memcpy((void*) buffer, (void*) &MFT_registers[1] + SECTOR_SIZE, SECTOR_SIZE);
-		write_sector (register_to_sector(z) + 1, buffer);	
+			memcpy((void*) buffer, (void*) &MFT_registers[index_register][16], SECTOR_SIZE);
+			write_sector (register_to_sector(z) + 1, buffer);	
 
-		records = readRecordsAtSector(new_block_index);
-		start_block = new_block_index;
-		start_sector = blockToFirstSector(start_block);
-		num_block_tupla = MFT_registers[1][z].numberOfContiguosBlocks;
-		found = TRUE;
-		found_index_record = 0;
-		found_index_sector = 0;
+			records = readRecordsAtSector(new_block_index);
+			start_block = new_block_index;
+			start_sector = blockToFirstSector(start_block);
+			num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+			found = TRUE;
+			found_index_record = 0;
+			found_index_sector = 0;
+		}
+		else {
+			
+
+		}
 		
 	}
 	
@@ -241,7 +282,7 @@ int create_new_register(int index) {
 
 	MFT_registers[index][0].numberOfContiguosBlocks = 0;
 
-	MFT_registers[index][1].atributeType = 1;
+	MFT_registers[index][1].atributeType = 0;
 	MFT_registers[index][1].virtualBlockNumber = 0;
 	MFT_registers[index][1].logicalBlockNumber = 0;
 	MFT_registers[index][1].numberOfContiguosBlocks = 0;
