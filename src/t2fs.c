@@ -57,24 +57,33 @@ int main() {
 	char file_buffer[SECTOR_SIZE];
 	
 	create2("FILEEz");
+	create2("Joaquim");
+	create2("OtavioLIndo");
 
-	struct t2fs_record* records = readRecordsAtSector(homedir_start_sector);
+	struct t2fs_record* records;
 	
-	int i;
+	int i,j;
 	int current_file_sector;
 	char* current_file_content;
 
-	for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
-		if ( isValidRecord(records[i]) ) {
+	for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 
-			current_file_sector = blockToFirstSector( MFT_registers[records[i].MFTNumber][0].logicalBlockNumber ); // This '0' needs to go out -> we must search all the tuple registers until
-			read_sector(current_file_sector, file_buffer);							       // We find the opcode to stop.
+		records = readRecordsAtSector(homedir_start_sector + j);
 
-			current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
+		for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+			if ( isValidRecord(records[i]) ) {
 
-			printf("\nThe content of %s is: \n", records[i].name);
-			printf("%s", current_file_content);
+				current_file_sector = blockToFirstSector( MFT_registers[records[i].MFTNumber][0].logicalBlockNumber ); // This '0' needs to go out -> we must search all the tuple registers until
+				read_sector(current_file_sector, file_buffer);							       // We find the opcode to stop.
+	
+				current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
+	
+				printf("\nThe content of %s is: \n", records[i].name);
+				printf("%s", current_file_content);
+			}
 		}
+
+		free(records);
 	}
 
 	//print_record(home_dir_file);print_record(home_dir_file2);
@@ -92,38 +101,48 @@ FILE2 create2 (char *filename) {
 
 	int homedir_start_sector = blockToFirstSector(MFT_registers[1][0].logicalBlockNumber);
 
-	struct t2fs_record* records = readRecordsAtSector(homedir_start_sector);
+	struct t2fs_record* records; 
 
 	char file_buffer[SECTOR_SIZE];
 
-	int i;
+	int i,j;
+	int found = FALSE;
+	int found_index_record = -1;
+	int found_index_sector = -1;
 	int current_file_sector;
 	char* current_file_content;
 
-	for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
-		if ( !(isValidRecord(records[i])) ) {
-			break;
+	for ( j = 0 ; (j < bootBlock.blockSize && !found) ; j++ ) {
+
+		records = readRecordsAtSector(homedir_start_sector + j);
+
+		for ( i = 0; (i < SECTOR_SIZE/sizeof(struct t2fs_record) && !found); i++ ) {
+			if ( !(isValidRecord(records[i])) ) {
+				found = TRUE;
+				found_index_record = i;
+				found_index_sector = j;
+			}
 		}
+		if (!found)
+			free(records);
 	}
+
+	if (!found)
+		printf("vai dar merda!\n");
 	
-	create_new_record(&records[i], filename, 1);
+	create_new_record(&records[found_index_record], filename, 1);
 
-	unsigned char *buffer;
-	
-	buffer = (unsigned char *)malloc(sizeof(records));
+	char buffer[SECTOR_SIZE];
+	memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
+ 
+	write_sector (homedir_start_sector + found_index_sector, buffer);
 
-	memcpy((void*) &(buffer), (void*) &records,  sizeof(records) );
+	create_new_register(records[found_index_record].MFTNumber);
 
-	write_sector (homedir_start_sector, buffer);
+	memcpy((void*) buffer, (void*) &MFT_registers[records[found_index_record].MFTNumber], SECTOR_SIZE);
 
-	create_new_register(records[i].MFTNumber);
+	write_sector ( register_to_sector(records[found_index_record].MFTNumber), buffer);
 
-	free(buffer);
-	buffer = (unsigned char *)malloc(sizeof(MFT_registers[records[i].MFTNumber])/2);
-
-	memcpy((void*) &(buffer), (void*) &(MFT_registers[records[i].MFTNumber]), sizeof(MFT_registers[records[i].MFTNumber])/2);
-
-	write_sector ( register_to_sector(records[i].MFTNumber), buffer);
 }
 
 int register_to_sector(const int register_number) {
@@ -151,7 +170,7 @@ int create_new_register(int index) {
 
 int create_new_record(struct t2fs_record *new_record, char *filename, int type) {
 	new_record->TypeVal = type; 
-    strcpy(new_record->name, filename); 	/* Nome do arquivo. : string com caracteres ASCII (0x21 até 0x7A), case sensitive.             */
+	strcpy(new_record->name, filename); 	/* Nome do arquivo. : string com caracteres ASCII (0x21 até 0x7A), case sensitive.             */
     new_record->blocksFileSize = 0; 		/* Tamanho do arquivo, expresso em número de blocos de dados */
     new_record->bytesFileSize = 0;  		/* Tamanho do arquivo. Expresso em número de bytes.          */
     new_record->MFTNumber = get_new_register();
