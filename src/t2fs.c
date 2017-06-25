@@ -51,44 +51,84 @@ int main() {
                                 // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
 	MFT_registers = load_MFTArea(MFT_register_amt, MFT_start_sector); //                                      [   0-4095  ][  0-31  ] -> NR_REGISTER relativo ao MFT (+1 depois do bloco de boot)
 
-	int homedir_start_sector = blockToFirstSector(MFT_registers[1][0].logicalBlockNumber); // This is no way completed. We need to extend.
+	int start_sector, start_block, num_block_tupla; // This is no way completed. We need to extend.
 
 
 	char file_buffer[SECTOR_SIZE];
-	
-	create2("FILEEz");
-	create2("Joaquim");
-	create2("OtavioLIndo");
+
+	create2("a");
+	create2("b");
+	create2("c");
+	create2("d");
+	create2("e");
+	create2("f");
+	create2("g");
+	create2("h");
+	create2("i");
+	create2("j");
+	create2("k");
+	create2("l");
+	create2("m");
+	create2("n");
+	create2("o");
+	create2("p");
+	create2("q");
+	create2("r");
+	create2("o");
+	create2("p");
+	create2("q");
+	create2("r");
+	create2("o");
+	create2("p");
+	create2("q");
+	create2("r");
+	create2("o");
+	create2("p");
+	create2("q");
+	create2("r");
+
+
 
 	struct t2fs_record* records;
 	
-	int i,j;
+	int i,j,k,z;
 	int current_file_sector;
 	char* current_file_content;
 
-	for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+	for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[1][z].atributeType != 0); z++) {
 
-		records = readRecordsAtSector(homedir_start_sector + j);
+		start_block = MFT_registers[1][z].logicalBlockNumber;
+		start_sector = blockToFirstSector(start_block);
+		num_block_tupla = MFT_registers[1][z].numberOfContiguosBlocks;
 
-		for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
-			if ( isValidRecord(records[i]) ) {
+		for ( k = 0; (k < num_block_tupla); k++) {
 
-				current_file_sector = blockToFirstSector( MFT_registers[records[i].MFTNumber][0].logicalBlockNumber ); // This '0' needs to go out -> we must search all the tuple registers until
-				read_sector(current_file_sector, file_buffer);							       // We find the opcode to stop.
+			for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 	
-				current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
+				records = readRecordsAtSector(start_sector + j);
+
+				for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+					if ( isValidRecord(records[i]) ) {
+		
+						current_file_sector = blockToFirstSector( MFT_registers[records[i].MFTNumber][0].logicalBlockNumber ); // FUCK THIS
+						read_sector(current_file_sector, file_buffer);							       // We find the opcode to stop.
 	
-				printf("\nThe content of %s is: \n", records[i].name);
-				printf("%s", current_file_content);
+						current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
+	
+						printf("\nThe content of %s is: \n", records[i].name);
+						printf("%s", current_file_content);
+					}
+				}
+
+				free(records);
 			}
-		}
 
-		free(records);
+		}
 	}
 
-	//print_record(home_dir_file);print_record(home_dir_file2);
+			//print_record(home_dir_file);print_record(home_dir_file2);
 
-	//printf("%d\n", searchBitmap2(0));
+			//printf("%d\n", searchBitmap2(0));
 
 	
 	return 0;
@@ -99,43 +139,85 @@ FILE2 create2 (char *filename) {
         // "/nome" -> criar MFT, criar record
 	struct t2fs_record new_record;
 
-	int homedir_start_sector = blockToFirstSector(MFT_registers[1][0].logicalBlockNumber);
 
 	struct t2fs_record* records; 
 
 	char file_buffer[SECTOR_SIZE];
 
-	int i,j;
+	int i,j,k,z;
 	int found = FALSE;
 	int found_index_record = -1;
 	int found_index_sector = -1;
 	int current_file_sector;
 	char* current_file_content;
 
-	for ( j = 0 ; (j < bootBlock.blockSize && !found) ; j++ ) {
+	int start_block;
+	int start_sector;
+	int num_block_tupla;
 
-		records = readRecordsAtSector(homedir_start_sector + j);
+	for ( z = 0; (z < TUPLES_PER_REGISTER && !found && MFT_registers[1][z].atributeType != 0); z++) {
 
-		for ( i = 0; (i < SECTOR_SIZE/sizeof(struct t2fs_record) && !found); i++ ) {
-			if ( !(isValidRecord(records[i])) ) {
-				found = TRUE;
-				found_index_record = i;
-				found_index_sector = j;
+		start_block = MFT_registers[1][z].logicalBlockNumber;
+		start_sector = blockToFirstSector(start_block);
+		num_block_tupla = MFT_registers[1][z].numberOfContiguosBlocks;
+
+		for ( k = 0; (k < num_block_tupla && !found); k++) {
+
+			for ( j = 0 ; (j < bootBlock.blockSize && !found) ; j++ ) {
+	
+				records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
+	
+				for ( i = 0; (i < SECTOR_SIZE/sizeof(struct t2fs_record) && !found); i++ ) {
+					if ( !(isValidRecord(records[i])) ) {
+						found = TRUE;
+						found_index_record = i;
+						found_index_sector = j + k*bootBlock.blockSize;
+					}
+				}
+				if (!found)
+					free(records);
 			}
 		}
-		if (!found)
-			free(records);
 	}
 
-	if (!found)
-		printf("vai dar merda!\n");
+	int new_block_index;
+	char buffer[SECTOR_SIZE];
+
+	if (!found) {
+		new_block_index = searchBitmap2(0);
+		setBitmap2 (new_block_index, 1);
+//		if (new_block_index == 
+		MFT_registers[1][z].atributeType = 1;
+		MFT_registers[1][z].virtualBlockNumber = MFT_registers[1][z-1].virtualBlockNumber + MFT_registers[1][z-1].numberOfContiguosBlocks;
+		MFT_registers[1][z].logicalBlockNumber = new_block_index;
+		MFT_registers[1][z].numberOfContiguosBlocks = 1;
+		
+		MFT_registers[1][z+1].atributeType = 0;
+		MFT_registers[1][z+1].virtualBlockNumber = 0;
+		MFT_registers[1][z+1].logicalBlockNumber = 0;
+		MFT_registers[1][z+1].numberOfContiguosBlocks = 0;
+
+		memcpy((void*) buffer, (void*) &MFT_registers[1][0], SECTOR_SIZE);	
+		write_sector (register_to_sector(z), buffer);
+
+		memcpy((void*) buffer, (void*) &MFT_registers[1][16], SECTOR_SIZE);
+		write_sector (register_to_sector(z) + 1, buffer);	
+
+		records = readRecordsAtSector(new_block_index);
+		start_block = new_block_index;
+		start_sector = blockToFirstSector(start_block);
+		num_block_tupla = MFT_registers[1][z].numberOfContiguosBlocks;
+		found = TRUE;
+		found_index_record = 0;
+		found_index_sector = 0;
+		
+	}
 	
 	create_new_record(&records[found_index_record], filename, 1);
 
-	char buffer[SECTOR_SIZE];
 	memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
  
-	write_sector (homedir_start_sector + found_index_sector, buffer);
+	write_sector (start_sector + found_index_sector, buffer);
 
 	create_new_register(records[found_index_record].MFTNumber);
 
@@ -171,9 +253,9 @@ int create_new_register(int index) {
 int create_new_record(struct t2fs_record *new_record, char *filename, int type) {
 	new_record->TypeVal = type; 
 	strcpy(new_record->name, filename); 	/* Nome do arquivo. : string com caracteres ASCII (0x21 até 0x7A), case sensitive.             */
-    new_record->blocksFileSize = 0; 		/* Tamanho do arquivo, expresso em número de blocos de dados */
-    new_record->bytesFileSize = 0;  		/* Tamanho do arquivo. Expresso em número de bytes.          */
-    new_record->MFTNumber = get_new_register();
+	new_record->blocksFileSize = 0; 		/* Tamanho do arquivo, expresso em número de blocos de dados */
+	new_record->bytesFileSize = 0;  		/* Tamanho do arquivo. Expresso em número de bytes.          */
+	new_record->MFTNumber = get_new_register();
 
 	return 0;
 }
