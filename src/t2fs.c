@@ -21,6 +21,13 @@ typedef struct {
 	int valido;
 } oDir;
 
+typedef struct {
+	int i_register;
+	int byte_opened;
+	int valido;
+	char name[MAX_FILE_NAME_SIZE];
+} oFile;
+
 // Loading disk.
 void load_bootBlock(void);
 struct t2fs_4tupla * load_register_at_sector(const int sector);
@@ -50,6 +57,7 @@ struct t2fs_4tupla **MFT_registers;                                   // Acessar
 int MFT_register_amt;
 int open_dir_number = 0;
 oDir *open_dirs;
+oFile open_files[MAX_FILES_OPEN];
 
 int main() {
 
@@ -62,6 +70,9 @@ int main() {
 	MFT_register_amt = MFT_size/MFT_register_size;		 	    // Logo, 2097152/512 -> 4096(2^12) registros !! (8192 setores ou 2048 blocos)
                                 // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
 	MFT_registers = load_MFTArea(MFT_register_amt, MFT_start_sector); //                                      [   0-4095  ][  0-31  ] -> NR_REGISTER relativo ao MFT (+1 depois do bloco de boot)
+	int y;
+	for (y = 0; y<MAX_FILES_OPEN; y++) 
+		open_files[y].valido = FALSE;
 
 	int start_sector, start_block, num_block_tupla; // This is no way completed. We need to extend.
 
@@ -102,8 +113,13 @@ int main() {
 	readdir2 (a, &dentry);
 	readdir2 (a, &dentry);
 	readdir2 (a, &dentry);
-	readdir2 (a, &dentry);
+	int b = open2("/dir1/fil2");
+	int c = open2("/file1");
+	close2(b);
+	int e = open2("/file2");
 	printf("%s\n", dentry.name);
+	char *alo;
+	//read2(c, alo, 0);
 	 
 	return 0;
 }
@@ -125,8 +141,147 @@ FILE2 mkdir2 (char *filename) {
 
 }
 
-DIR2 opendir2 (char *pathname) {
+FILE2 open2 (char *filename) {
 
+	int size;
+	int z,k,j,i,y;
+   	int start_sector, start_block, num_block_tupla;
+	char **names = split(filename, &size);
+	int index_register = 1;
+	struct t2fs_record *record;
+	struct t2fs_record* records;
+
+	for (i = 0; i<size-1; i++) {
+		record = search_directory(index_register, names[i]);
+		if (record == NULL) {
+			printf("DEU RUIM\n");
+			return -1;
+		}
+		index_register = record->MFTNumber;
+	}
+	while(MFT_registers[index_register][0].atributeType!=0) {
+ 
+	    for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
+	 
+	        start_block = MFT_registers[index_register][z].logicalBlockNumber;
+	        start_sector = blockToFirstSector(start_block);
+	        num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+	 
+	        for ( k = 0; (k < num_block_tupla); k++) {
+	 
+	            for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+	   
+	                records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
+	 
+	                for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+	                    if ( isValidRecord(records[i]) && !strcmp(records[i].name, names[size-1])) {
+	                        for (y = 0; y<MAX_FILES_OPEN; y++) {
+					if (open_files[y].valido == FALSE) {
+						open_files[y].byte_opened = 0;
+						open_files[y].valido = TRUE;
+						open_files[y].i_register = index_register;
+						strcpy(open_files[y].name, records[i].name);
+						return y;
+					}
+				}
+				return -2;
+	                    }
+	                }
+	 
+	                free(records);
+	            }
+	
+	        }
+	    }
+	    index_register = MFT_registers[index_register][31].virtualBlockNumber;
+	    if (index_register < 0)
+	        break;	       
+	}
+
+	return -1;
+
+}
+
+int close2 (FILE2 handle) {
+	open_files[handle].valido = FALSE;
+	return 0;
+}
+
+int read2 (FILE2 handle, char *buffer, int size) {
+	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name);
+	printf("OLOCO JUCA: %d\n", index_register);
+	int z,k,j;
+	int start_sector, start_block, num_block_tupla;
+	char *auxbuffer;
+	if (size == 0)
+		return 0;
+	else {
+		struct t2fs_record* records;
+	
+		while(MFT_registers[index_register][0].atributeType!=0) {
+	 
+		    for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
+		 
+		        start_block = MFT_registers[index_register][z].logicalBlockNumber;
+		        start_sector = blockToFirstSector(start_block);
+		        num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+		 
+		        for ( k = 0; (k < num_block_tupla); k++) {
+		 
+		            for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+		                read_sector (start_sector + j + k * bootBlock.blockSize , auxbuffer);
+		            }
+		
+		        }
+		    }
+		    index_register = MFT_registers[index_register][31].virtualBlockNumber;
+		    if (index_register < 0)
+		        break;	       
+		}
+		
+
+	}
+}
+
+int get_register_from_file (int index_register, char *filename) {
+	int z,k,j,i;
+   	int start_sector, start_block, num_block_tupla;
+	struct t2fs_record* records;
+
+	while(MFT_registers[index_register][0].atributeType!=0) {
+ 
+	    for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
+	 
+	        start_block = MFT_registers[index_register][z].logicalBlockNumber;
+	        start_sector = blockToFirstSector(start_block);
+	        num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+	 
+	        for ( k = 0; (k < num_block_tupla); k++) {
+	 
+	            for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+	   
+	                records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
+	 
+	                for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+	                    if ( isValidRecord(records[i]) && !strcmp(records[i].name, filename)) {
+	                        return records[i].MFTNumber;
+	                    }
+	                }
+	 
+	                free(records);
+	            }
+	
+	        }
+	    }
+	    index_register = MFT_registers[index_register][31].virtualBlockNumber;
+	    if (index_register < 0)
+	        break;	       
+	}
+}
+
+
+DIR2 opendir2 (char *pathname) {
+//TODO: TRATAR LIXO
 	int size, i;
 	char **names = split(pathname, &size);
 	int index_register = 1;
@@ -161,6 +316,7 @@ DIR2 opendir2 (char *pathname) {
 
 }
 
+
 int readdir2 (DIR2 handle, DIRENT2 *dentry) {
 	int z,k,j,i;
 	int start_sector, start_block, num_block_tupla;
@@ -182,7 +338,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry) {
 
 				for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 	
-					records = readRecordsAtSector(start_sector + j);
+					records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
 
 					for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
 						if ( isValidRecord(records[i])) {
@@ -324,7 +480,7 @@ int isDirEmpty(int index_register) {
  
                 for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
    
-                    records = readRecordsAtSector(start_sector + j);
+                    records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
  
                     for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
                         if ( isValidRecord(records[i])) {
@@ -390,7 +546,7 @@ int get_delete_register (char *filename, int type) {
  
                 for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
    
-                    records = readRecordsAtSector(start_sector + j);
+                    records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
  
                     for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
                         if ( isValidRecord(records[i]) && !strcmp(records[i].name, names[size-1])  ) {
@@ -584,7 +740,6 @@ char** split(char* string, int *size) {
 
 	if (strcmp(string, "/") == 0) {
 		*size = 0;
-		printf("\n\n\nCHATUBA DE MESQUITA\n\n\n");
 		return NULL;
 	}
 
@@ -694,7 +849,7 @@ struct t2fs_record* search_directory(int index_register, char *filename) {
 
 				for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 	
-					records = readRecordsAtSector(start_sector + j);
+					records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
 
 					for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
 						if ( isValidRecord(records[i]) && !strcmp(records[i].name, filename)) {
