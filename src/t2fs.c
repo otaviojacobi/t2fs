@@ -92,7 +92,7 @@ int main() {
 	 create2("/dir1/fil2");
 	 create2("/dir1/fil2");
 	 mkdir2("/dir1/dir2");
-	 mkdir2("/dir1/dir2");
+	 //mkdir2("/dir1/dir2");
 	 create2("/dir1/dir2/arqx");
 	 delete2("/dir1/dir2/arqx");
 	 //create2("/dir1/dir2/ar2");
@@ -481,7 +481,7 @@ int get_delete_register (char *filename, int type) {
                                 return records[i].MFTNumber;
                             }
                             else if (records[i].TypeVal == type && records[i].TypeVal == 2) {
-                                if ( !isDirEmpty(index_register)) {
+                                if ( !isDirEmpty(records[i].MFTNumber)) {
                                     return -3;
                                 }
                                 records[i].TypeVal = 0;
