@@ -86,20 +86,51 @@ int main() {
 
 	}
 	*/
-	mkdir2("/dir1");
-	create2("/file1");
-	create2("oi");
-	create2("/dir1/fil2");
-	mkdir2("/dir1/dir2");
-	mkdir2("/dir1/dir2");
-	create2("/dir1/dir2/arqx");
-	int a = opendir2("/dir1");
-	printf("\n\nHandle eh: %d\n\n", a);
-	DIRENT2 dentry;
-	readdir2(a, &dentry);
-	printf("\nNOME DO JAO: %s\n", dentry.name);
-	readdir2(a, &dentry);
-	printf("\nNOME DO JAO: %s\n", dentry.name);
+         mkdir2("/dir1");
+	 create2("/file1");
+	 create2("oi");
+	 create2("/dir1/fil2");
+	 create2("/dir1/fil2");
+	 mkdir2("/dir1/dir2");
+	 mkdir2("/dir1/dir2");
+	 create2("/dir1/dir2/arqx");
+	 delete2("/dir1/dir2/arqx");
+	 //create2("/dir1/dir2/ar2");
+ 
+ 
+	 int l =0;
+	 char *c = (char*) malloc(20);
+	 for (l=0; l < 3; l++) {
+		  c[0] = '/';
+		  c[1] = 'd';
+		  c[2] = 'i';
+		  c[3] = 'r';
+		  c[4] = '1';
+		  c[5] = '/';
+		  c[6] = 'd';
+		  c[7] = 'i';
+		  c[8] = 'r';
+		  c[9] = '2';
+		  c[10] = '/';
+		  c[11] = 'a';
+		  c[12] = 'r';
+		  c[13] = 'q';
+		  c[14] = 'x'; 
+		  c[15] = l/1000 + 48;     ///4123 /1000 -> 4
+		  c[16] = (l/100)%10 + 48; ///4123 /100 -> 41 % 10 -> 1
+		  c[17] = ((l/10)%10)%10 + 48; ///4123 /10 -> 412 %10 -> 12 %10 -> 2
+		  c[18] = ((l%10)%10)%10+ 48;               ///4123 % 10 -> 123 % 10 -> 23 % 10 -> 3
+		  c[19] = '\0';
+		  create2(c);
+ 	}
+
+	 rmdir2("/dir1/dir2");
+	 
+	 delete2("/dir1/dir2/arqx0000");
+	 delete2("/dir1/dir2/arqx0001");
+	 delete2("/dir1/dir2/arqx0002");
+
+	rmdir2("/dir1/dir2");
 
 	struct t2fs_record* records;
 	
@@ -107,8 +138,8 @@ int main() {
 	int current_file_sector;
 	char* current_file_content;
 
-	int index_register = 1;
-	while(MFT_registers[index_register][0].atributeType!=-1) {
+	int index_register = 8;
+	while(MFT_registers[index_register][0].atributeType!=0) {
 
 		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
 
@@ -131,7 +162,7 @@ int main() {
 							current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
 	
 							printf("\n%d - ", index_register);
-							printf("%s\n", records[i].name);
+							printf("%s - %d\n", records[i].name, records[i].MFTNumber);
 							printf("%s\n", current_file_content);
 						}
 					}
@@ -217,7 +248,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry) {
 	int index_register = open_dirs[handle].i_register;
 	struct t2fs_record* records;
 
-	while(MFT_registers[index_register][0].atributeType!=-1) {
+	while(MFT_registers[index_register][0].atributeType!= 0) {
 
 		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
 
@@ -239,6 +270,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry) {
 								strcpy(dentry->name, records[i].name);
 								dentry->fileType = records[i].TypeVal;                   /* Tipo do arquivo: regular (0x01) ou diretório (0x02) */
 								dentry->fileSize = records[i].bytesFileSize;
+								open_dirs[handle].file_opened++;
 								return 0;
 							}
 						}
@@ -262,6 +294,223 @@ int closedir2 (DIR2 handle)	{
 
 }
 
+int delete2(char* filename) {
+ 
+    int index_register = get_delete_register(filename, 1);
+ 
+    int z,k,j,i;
+    int start_sector, start_block, num_block_tupla;
+ 
+    if(index_register == -1) {
+        printf("Nao pode ser deletado: path invalido\n");
+        return -1;
+    }
+    else if (index_register == -2) {
+        printf("Nao pode ser deletado: nao delete diretorios com essa funcao\n");
+        return -1;
+    }
+ 
+ 
+    while(MFT_registers[index_register][0].atributeType!=0) {
+ 
+        for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
+ 
+            start_block = MFT_registers[index_register][z].logicalBlockNumber;
+            start_sector = blockToFirstSector(start_block);
+            num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+ 
+            MFT_registers[index_register][z].atributeType = -1;
+ 
+            for ( k = 0; (k < num_block_tupla); k++) {
+                setBitmap2(start_block + k, 0);
+            }
+        }
+        index_register = MFT_registers[index_register][31].virtualBlockNumber;
+        if (index_register < 0)
+            break;
+       
+    }
+    printf("Apagou o arquivo\n");
+    return 0;
+}
+ 
+int rmdir2 (char *pathname) {
+ 
+    int index_register = get_delete_register(pathname, 2);
+   
+ 
+ 
+    int z,k,j,i;
+    int start_sector, start_block, num_block_tupla;
+ 
+    if(index_register == -1) {
+        printf("Nao pode ser deletado: path invalido\n");
+        return -1;
+    }
+    else if (index_register == -2) {
+        printf("Nao pode ser deletado: nao delete arquivos com essa funcao\n");
+        return -1;
+    }
+    else if (index_register == -3) {
+        printf("Nao pode apagar dir que nao ta vazio!\n");
+        return -1;
+    }
+ 
+    while(MFT_registers[index_register][0].atributeType!=0) {
+ 
+        for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
+ 
+            start_block = MFT_registers[index_register][z].logicalBlockNumber;
+            start_sector = blockToFirstSector(start_block);
+            num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+ 
+            MFT_registers[index_register][z].atributeType = -1;
+ 
+            for ( k = 0; (k < num_block_tupla); k++) {
+                setBitmap2(start_block + k, 0);
+            }
+        }
+        index_register = MFT_registers[index_register][31].virtualBlockNumber;
+        if (index_register < 0)
+            break;
+       
+    }
+
+    printf("Apagou o dir\n");
+    return 0;
+   
+}
+ 
+int isDirEmpty(int index_register) {
+   
+    int z,k,j,i;
+    int start_sector, start_block, num_block_tupla;
+ 
+    struct t2fs_record* records;
+ 
+    char buffer[SECTOR_SIZE];
+ 
+    while(MFT_registers[index_register][0].atributeType!=0) {
+ 
+        for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
+ 
+            start_block = MFT_registers[index_register][z].logicalBlockNumber;
+            start_sector = blockToFirstSector(start_block);
+            num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+ 
+            for ( k = 0; (k < num_block_tupla); k++) {
+ 
+                for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+   
+                    records = readRecordsAtSector(start_sector + j);
+ 
+                    for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+                        if ( isValidRecord(records[i])) {
+                            return FALSE;
+                        }
+                    }
+ 
+                    free(records);
+                }
+ 
+            }
+        }
+        index_register = MFT_registers[index_register][31].virtualBlockNumber;
+        if (index_register < 0)
+            break;
+       
+    }
+ 
+    return TRUE;
+ 
+}
+ 
+int get_delete_register (char *filename, int type) {
+ 
+    int z,k,j,i;
+    int start_sector, start_block, num_block_tupla;
+ 
+    int size;
+    char **names = split(filename, &size);
+    int index_register = 1;
+   
+    struct t2fs_record* records;
+    struct t2fs_record* record;
+ 
+    char buffer[SECTOR_SIZE];
+ 
+    if (filename[0] != '/') {
+        printf("Passe o Path absoluto !!\n");
+        return -1;
+    }
+       
+ 
+    for (i = 0; i<size-1; i++) {
+        record = search_directory(index_register, names[i]);
+        if (record == NULL) {
+            printf("NDEU RUIM\n");
+            return -1;
+        }
+        index_register = record->MFTNumber;
+    }
+ 
+    //printf("MFT_REGISTER %d\n",index_register);
+ 
+    while(MFT_registers[index_register][0].atributeType!=0) {
+ 
+        for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
+ 
+            start_block = MFT_registers[index_register][z].logicalBlockNumber;
+            start_sector = blockToFirstSector(start_block);
+            num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+ 
+            for ( k = 0; (k < num_block_tupla); k++) {
+ 
+                for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+   
+                    records = readRecordsAtSector(start_sector + j);
+ 
+                    for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+                        if ( isValidRecord(records[i]) && !strcmp(records[i].name, names[size-1])  ) {
+                            if (records[i].TypeVal == type && records[i].TypeVal == 1) {
+                                records[i].TypeVal = 0;
+                           
+                                memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
+                                write_sector (start_sector + j, buffer);
+                           
+                                return records[i].MFTNumber;
+                            }
+                            else if (records[i].TypeVal == type && records[i].TypeVal == 2) {
+                                if ( !isDirEmpty(index_register)) {
+                                    return -3;
+                                }
+                                records[i].TypeVal = 0;
+                           
+                                memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
+                                write_sector (start_sector + j, buffer);
+                           
+                                return records[i].MFTNumber;
+ 
+                            }
+                            else {
+                                return -2;
+                            }
+                        }
+                    }
+ 
+                    free(records);
+                }
+ 
+            }
+        }
+        index_register = MFT_registers[index_register][31].virtualBlockNumber;
+        if (index_register < 0)
+            break;
+       
+    }
+ 
+    return -1;
+}
 
 FILE2 create_file(char *filename, int type) {
 
@@ -505,7 +754,7 @@ struct t2fs_record* search_directory(int index_register, char *filename) {
 	struct t2fs_record* records;
 
 
-	while(MFT_registers[index_register][0].atributeType!=-1) {
+	while(MFT_registers[index_register][0].atributeType!=0) {
 
 		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
 
