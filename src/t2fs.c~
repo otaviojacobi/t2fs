@@ -86,103 +86,25 @@ int main() {
 
 	}
 	*/
-         mkdir2("/dir1");
-	 create2("/file1");
-	 create2("oi");
-	 create2("/dir1/fil2");
-	 create2("/dir1/fil2");
-	 mkdir2("/dir1/dir2");
-	 //mkdir2("/dir1/dir2");
-	 create2("/dir1/dir2/arqx");
-	 delete2("/dir1/dir2/arqx");
-	 //create2("/dir1/dir2/ar2");
- 
- 
-	 int l =0;
-	 char *c = (char*) malloc(20);
-	 for (l=0; l < 3; l++) {
-		  c[0] = '/';
-		  c[1] = 'd';
-		  c[2] = 'i';
-		  c[3] = 'r';
-		  c[4] = '1';
-		  c[5] = '/';
-		  c[6] = 'd';
-		  c[7] = 'i';
-		  c[8] = 'r';
-		  c[9] = '2';
-		  c[10] = '/';
-		  c[11] = 'a';
-		  c[12] = 'r';
-		  c[13] = 'q';
-		  c[14] = 'x'; 
-		  c[15] = l/1000 + 48;     ///4123 /1000 -> 4
-		  c[16] = (l/100)%10 + 48; ///4123 /100 -> 41 % 10 -> 1
-		  c[17] = ((l/10)%10)%10 + 48; ///4123 /10 -> 412 %10 -> 12 %10 -> 2
-		  c[18] = ((l%10)%10)%10+ 48;               ///4123 % 10 -> 123 % 10 -> 23 % 10 -> 3
-		  c[19] = '\0';
-		  create2(c);
- 	}
-
-	 rmdir2("/dir1/dir2");
+        mkdir2("/dir1");
+	create2("/file1");
+	create2("oi");
+	create2("/dir1/fil2");
+	create2("/dir1/fil2");
+	mkdir2("/dir1/dir2");
+	//mkdir2("/dir1/dir2");
+	create2("/dir1/dir2/arqx");
+	delete2("/dir1/dir2/arqx");
+	//create2("/dir1/dir2/ar2");
+	int a = opendir2("/");
+	printf("LOUCO: %d\n", a);
+	DIRENT2 dentry;
+	readdir2 (a, &dentry);
+	readdir2 (a, &dentry);
+	readdir2 (a, &dentry);
+	readdir2 (a, &dentry);
+	printf("%s\n", dentry.name);
 	 
-	 delete2("/dir1/dir2/arqx0000");
-	 delete2("/dir1/dir2/arqx0001");
-	 //delete2("/dir1/dir2/arqx0002");
-
-	 rmdir2("/dir1/dir2");
-
-	struct t2fs_record* records;
-	
-	int i,j,k,z;
-	int current_file_sector;
-	char* current_file_content;
-
-	int index_register = 8;
-	while(MFT_registers[index_register][0].atributeType!=0) {
-
-		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
-
-			start_block = MFT_registers[index_register][z].logicalBlockNumber;
-			start_sector = blockToFirstSector(start_block);
-			num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
-
-			for ( k = 0; (k < num_block_tupla); k++) {
-
-				for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
-	
-					records = readRecordsAtSector(start_sector + j);
-
-					for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
-						if ( isValidRecord(records[i]) ) {
-		
-							current_file_sector = blockToFirstSector( MFT_registers[records[i].MFTNumber][0].logicalBlockNumber ); // FUCK THIS
-							read_sector(current_file_sector, file_buffer);							       // We find the opcode to stop.
-	
-							current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
-	
-							printf("\n%d - ", index_register);
-							printf("%s - %d\n", records[i].name, records[i].MFTNumber);
-							printf("%s\n", current_file_content);
-						}
-					}
-
-					free(records);
-				}
-
-			}
-		}
-			index_register = MFT_registers[index_register][31].virtualBlockNumber;
-			if (index_register < 0)
-				break;
-		
-	}
-
-			//print_record(home_dir_file);print_record(home_dir_file2);
-
-			//printf("%d\n", searchBitmap2(0));
-
-	
 	return 0;
 }
 
@@ -282,8 +204,10 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry) {
 			}
 		}
 			index_register = MFT_registers[index_register][31].virtualBlockNumber;
-			if (index_register < 0)
+			if (index_register < 0) {
+				printf("\nA MENINA EH SURDA DEU RUIM\n");
 				break;
+			}
 		
 	}
 }
@@ -659,6 +583,12 @@ char** split(char* string, int *size) {
 
 	int i;
 	int path_size = 0; 
+
+	if (strcmp(string, "/") == 0) {
+		*size = 0;
+		printf("\n\n\nCHATUBA DE MESQUITA\n\n\n");
+		return NULL;
+	}
 
 	for (i=0; i<strlen(string); i++) {
 		if (string[i] == '/') 
