@@ -29,7 +29,7 @@ char* charArrayToString(const char* charArray, const int size);
 int blockToFirstSector(const int block);
 int sectorToBlock(const int sector);
 char** split(char* string, int *size);
-int find_record_from_path(char *filename);
+int find_register_from_path(char *filename);
 struct t2fs_record* search_directory(int index_register, char *filename);
 
 
@@ -43,6 +43,7 @@ void print_record(const struct t2fs_record file_entry);
 struct t2fs_bootBlock bootBlock;
 struct t2fs_4tupla **MFT_registers;                                   // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
 int MFT_register_amt;
+int current_index_register = 1; // /home dir
 
 int main() {
 
@@ -81,7 +82,11 @@ int main() {
 	*/
 	mkdir2("/dir1");
 	create2("/file1");
+	create2("oi");
 	create2("/dir1/fil2");
+	mkdir2("/dir1/dir2");
+	mkdir2("/dir1/dir2");
+	create2("/dir1/dir2/arqx");
 
 	struct t2fs_record* records;
 	
@@ -89,10 +94,10 @@ int main() {
 	int current_file_sector;
 	char* current_file_content;
 
-	int index_register = 1;
+	int index_register = 6;
 	while(MFT_registers[index_register][0].atributeType!=-1) {
 
-		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType != 0); z++) {
+		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
 
 			start_block = MFT_registers[index_register][z].logicalBlockNumber;
 			start_sector = blockToFirstSector(start_block);
@@ -113,8 +118,8 @@ int main() {
 							current_file_content = charArrayToString(file_buffer, records[i].bytesFileSize); //Most simple read() ever
 	
 							printf("\n%d - ", index_register);
-							printf("%s", records[i].name);
-							printf("%s", current_file_content);
+							printf("%s\n", records[i].name);
+							printf("%s\n", current_file_content);
 						}
 					}
 
@@ -139,6 +144,11 @@ int main() {
 
 FILE2 create2 (char *filename) {
 
+	if (filename[0] != '/'){
+		printf("create2 so funciona com path absoluto\n");
+		return -1;
+	}
+		
 	return create_file(filename, 1);
 
 }
@@ -146,6 +156,28 @@ FILE2 create2 (char *filename) {
 FILE2 mkdir2 (char *filename) {
 
 	return create_file(filename, 2);
+
+}
+
+DIR2 opendir2 (char *pathname) {
+
+	int size, i;
+	char **names = split(pathname, &size);
+	int index_register = current_index_register;
+	struct t2fs_record *record;
+
+	for (i = 0; i<size; i++) {
+		record = search_directory(index_register, names[i]);
+		if (record == NULL || record->TypeVal != 2) {
+			printf("DEU RUIM\n");
+			return -1;
+		}
+		index_register = record->MFTNumber;
+	}
+	
+	current_index_register = index_register;
+
+	return current_index_register;
 
 }
 
@@ -172,10 +204,17 @@ FILE2 create_file(char *filename, int type) {
 	int start_sector;
 	int num_block_tupla;
 
-	int index_register = find_record_from_path(filename);	
+	int index_register = find_register_from_path(filename);
+	int size;
+	char **names = split(filename, &size);
+
+	if (search_directory(index_register, names[size-1]) != NULL) {
+		printf("Ja existe arquivo com mesmo nome %s.\n", filename);
+		return -1;
+	}
 
 	while (!found && !end_found) {
-		for ( z = 0; (z < TUPLES_PER_REGISTER-1 && !found && MFT_registers[index_register][z].atributeType != 0); z++) {
+		for ( z = 0; (z < TUPLES_PER_REGISTER-1 && !found && MFT_registers[index_register][z].atributeType > 0); z++) {
 			//printf("INDEX REGISTER: %d\n", index_register);
 			start_block = MFT_registers[index_register][z].logicalBlockNumber;
 			start_sector = blockToFirstSector(start_block);
@@ -263,9 +302,6 @@ FILE2 create_file(char *filename, int type) {
 		}
 		
 	}
-
-	int size;
-	char **names = split(filename, &size);
 	
 	create_new_record(&records[found_index_record], names[size-1], type);
 
@@ -317,19 +353,22 @@ char** split(char* string, int *size) {
 	return result;
 }
 
-int find_record_from_path(char *filename) {
+int find_register_from_path(char *filename) {
 	
 	int size, i;
 	char **names = split(filename, &size);
-	printf("Joaquim: %s\n\n", names[0]);
 	int index_register = 1;
+
+	if (filename[0] != '/')
+		index_register = current_index_register;
+		
 	struct t2fs_record *record;
 
 	for (i = 0; i<size-1; i++) {
 		record = search_directory(index_register, names[i]);
 		if (record == NULL) {
 			printf("DEU RUIM\n");
-			exit(-1);
+			return -1;
 		}
 		index_register = record->MFTNumber;
 	}
@@ -337,6 +376,47 @@ int find_record_from_path(char *filename) {
 	return index_register;
 
 }
+
+/*
+int search_file_in_register(char *filename, int index_register) {
+
+	int z,k,j,i;
+	int start_sector, start_block, num_block_tupla;
+	struct t2fs_record *record;
+
+	while(MFT_registers[index_register][0].atributeType!=-1) {
+
+		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType != 0); z++) {
+
+			start_block = MFT_registers[index_register][z].logicalBlockNumber;
+			start_sector = blockToFirstSector(start_block);
+			num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+
+			for ( k = 0; (k < num_block_tupla); k++) {
+
+				for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+	
+					records = readRecordsAtSector(start_sector + j);
+
+					for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
+						if ( isValidRecord(records[i]) && !strcmp(records[i].name, filename)) {
+							return &records[i];
+						}
+					}
+
+					free(records);
+				}
+
+			}
+		}
+			index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
+			if (index_register < 0)
+				break;
+		
+	}
+
+}
+*/
 
 struct t2fs_record* search_directory(int index_register, char *filename) {
 
@@ -348,7 +428,7 @@ struct t2fs_record* search_directory(int index_register, char *filename) {
 
 	while(MFT_registers[index_register][0].atributeType!=-1) {
 
-		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType != 0); z++) {
+		for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
 
 			start_block = MFT_registers[index_register][z].logicalBlockNumber;
 			start_sector = blockToFirstSector(start_block);
