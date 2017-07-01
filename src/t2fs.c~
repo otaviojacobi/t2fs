@@ -118,8 +118,9 @@ int main() {
 	close2(b);
 	int e = open2("/file2");
 	printf("%s\n", dentry.name);
-	char *alo;
-	//read2(c, alo, 0);
+	char alo[100];
+	read2(c, alo, 100);
+	printf("%s\n", alo); 
 	 
 	return 0;
 }
@@ -212,10 +213,10 @@ int read2 (FILE2 handle, char *buffer, int size) {
 	printf("OLOCO JUCA: %d\n", index_register);
 	int z,k,j;
 	int start_sector, start_block, num_block_tupla;
-	char *auxbuffer;
+	char auxbuffer[SECTOR_SIZE];
 	if (size == 0)
 		return 0;
-	/*else {
+	else {
 		struct t2fs_record* records;
 	
 		while(MFT_registers[index_register][0].atributeType!=0) {
@@ -230,6 +231,15 @@ int read2 (FILE2 handle, char *buffer, int size) {
 		 
 		            for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 		                read_sector (start_sector + j + k * bootBlock.blockSize , auxbuffer);
+				if (size <= SECTOR_SIZE) {			
+					memcpy(buffer, auxbuffer, size);
+					open_files[handle].byte_opened += size;
+					return 0;
+				}
+				else {
+					memcpy(buffer, auxbuffer, SECTOR_SIZE);
+					
+				}
 		            }
 		
 		        }
@@ -240,7 +250,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
 		}
 		
 
-	}*/
+	}
 }
 
 int get_register_from_file (int index_register, char *filename) {
