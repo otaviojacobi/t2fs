@@ -119,8 +119,12 @@ int main() {
 	int e = open2("/file2");
 	printf("%s\n", dentry.name);
 	char alo[100];
-	read2(c, alo, 100);
-	printf("%s\n", alo); 
+	seek2(c, 5);
+	read2(c, alo, 5);
+	printf("%s\n", alo);
+	read2(c, alo, 5);
+	printf("%s\n", alo);
+	
 	 
 	return 0;
 }
@@ -208,12 +212,20 @@ int close2 (FILE2 handle) {
 	return 0;
 }
 
+int seek2 (FILE2 handle, DWORD offset) {
+	if (open_files[handle].valido)
+		open_files[handle].byte_opened = offset;
+	else
+		return -1;
+}
+
 int read2 (FILE2 handle, char *buffer, int size) {
 	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name);
 	printf("OLOCO JUCA: %d\n", index_register);
 	int z,k,j;
 	int start_sector, start_block, num_block_tupla;
 	int auxsize = size;
+	int startsize = open_files[handle].byte_opened;
 	char auxbuffer[SECTOR_SIZE];
 	if (size == 0)
 		return 0;
@@ -232,14 +244,32 @@ int read2 (FILE2 handle, char *buffer, int size) {
 		 
 		            for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 		                read_sector (start_sector + j + k * bootBlock.blockSize , auxbuffer);
-				if (auxsize <= SECTOR_SIZE) {			
-					memcpy(buffer, auxbuffer, auxsize);
-					open_files[handle].byte_opened += size;
-					return 0;
+				if (startsize > 0) {
+					if (startsize >= SECTOR_SIZE) {
+						startsize -= SECTOR_SIZE;
+					}
+					else {
+						if (startsize + auxsize <= SECTOR_SIZE) {
+							memcpy(buffer, auxbuffer+startsize, auxsize);
+							open_files[handle].byte_opened += size;
+							return 0;
+						}
+						else {
+							startsize = 0 ;
+							memcpy(buffer, auxbuffer+startsize, SECTOR_SIZE-startsize);
+						}
+					}
 				}
 				else {
-					memcpy(buffer, auxbuffer, SECTOR_SIZE);
-					auxsize -= SECTOR_SIZE;
+					if (auxsize <= SECTOR_SIZE) {			
+						memcpy(buffer, auxbuffer, auxsize);
+						open_files[handle].byte_opened += size;
+						return 0;
+					}
+					else {
+						memcpy(buffer, auxbuffer, SECTOR_SIZE);
+						auxsize -= SECTOR_SIZE;
+					}
 				}
 		            }
 		
