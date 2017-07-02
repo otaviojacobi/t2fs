@@ -55,6 +55,8 @@ void print_tree (int nivel, char *dir);
 void print_record(const struct t2fs_record file_entry);
 void print_all();
 
+void debug();
+
 // Globals
 struct t2fs_bootBlock bootBlock;
 struct t2fs_4tupla **MFT_registers;                                   // Acessar elemento -> MFT_registers[NR_REGISTRO][NR_TUPLA]
@@ -63,7 +65,10 @@ int open_dir_number = 0;
 oDir *open_dirs;
 oFile open_files[MAX_FILES_OPEN];
 
-int main() {
+int inited = FALSE;
+
+
+void init() {
 
 	load_bootBlock();
 	//print_bootBlock();
@@ -78,10 +83,14 @@ int main() {
 	for (y = 0; y<MAX_FILES_OPEN; y++) 
 		open_files[y].valido = FALSE;
 
-	int start_sector, start_block, num_block_tupla; // This is no way completed. We need to extend.
+	inited = TRUE;
+	//fdebug();
 
 
-	char file_buffer[SECTOR_SIZE];
+	//int start_sector, start_block, num_block_tupla; // This is no way completed. We need to extend.
+
+
+	//char file_buffer[SECTOR_SIZE];
 
 	/*
 	int l;
@@ -101,6 +110,8 @@ int main() {
 
 	}
 	*/
+
+	/*
         mkdir2("/dir1");
 	create2("/file1");
 	create2("oi");
@@ -133,14 +144,33 @@ int main() {
 	read2(c, alo, 2);
 	alo[2] = 0;
 	printf("Alo: %s\n", alo);
-	printf("otavio gostoso\n");
+	printf("otavio gostoso\n"); */
 	
 	//print_all();
 	 
+	//return 0;
+}
+void debug() {
+	printf("que\n");
+	int j;
+	for (j=0; j < 10; j++)
+		print_4tupla(MFT_registers[j][0]);
+}
+
+int truncate2 (FILE2 handle) {
+	return 0;
+}
+
+int identify2 (char *name, int size) {
 	return 0;
 }
 
 FILE2 create2 (char *filename) {
+	
+	if (!inited) {
+		init();
+	}
+	//debug();
 
 	if (filename[0] != '/'){
 		printf("create2 so funciona com path absoluto\n");
@@ -153,11 +183,20 @@ FILE2 create2 (char *filename) {
 
 FILE2 mkdir2 (char *filename) {
 
+	if (!inited) {
+		init();
+	}
+	//debug();
+
 	return create_file(filename, 2);
 
 }
 
 FILE2 open2 (char *filename) {
+	if (!inited) {
+		init();
+	}
+	//debug();	
 
 	int size;
 	int z,k,j,i,y;
@@ -219,11 +258,23 @@ FILE2 open2 (char *filename) {
 }
 
 int close2 (FILE2 handle) {
+
+	if (!inited) {
+		init();
+	}
+	//debug();
+
 	open_files[handle].valido = FALSE;
 	return 0;
 }
 
 int seek2 (FILE2 handle, DWORD offset) {
+
+	if (!inited) {
+		init();
+	}
+	//debug();
+
 	if (open_files[handle].valido)
 		open_files[handle].byte_opened = offset;
 	else
@@ -231,6 +282,11 @@ int seek2 (FILE2 handle, DWORD offset) {
 }
 
 int read2 (FILE2 handle, char *buffer, int size) {
+
+	if (!inited) {
+		init();
+	}
+	//debug();
 
 // TODO: até acabar o byte size;
 	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name);
@@ -298,6 +354,12 @@ int read2 (FILE2 handle, char *buffer, int size) {
 }
 
 int write2 (FILE2 handle, char *buffer, int size) {
+
+	if (!inited) {
+		init();
+	}
+	//debug();
+
 	// TODO: COMPARE POINTER WITH END
 	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name);
 	int z,k,j;
@@ -451,6 +513,11 @@ int get_register_from_file (int index_register, char *filename) {
 
 
 DIR2 opendir2 (char *pathname) {
+
+	if (!inited) {
+		init();
+	}
+	//debug();
 //TODO: TRATAR LIXO
 	int size, i;
 	char **names = split(pathname, &size);
@@ -488,6 +555,12 @@ DIR2 opendir2 (char *pathname) {
 
 
 int readdir2 (DIR2 handle, DIRENT2 *dentry) {
+
+	if (!inited) {
+		init();
+	}
+	//debug();	
+
 	int z,k,j,i;
 	int start_sector, start_block, num_block_tupla;
 	int count = open_dirs[handle].file_opened;
@@ -538,11 +611,21 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry) {
 
 int closedir2 (DIR2 handle)	{
 
+	if (!inited) {
+		init();
+	}
+	//debug();
+
 	open_dirs[handle].valido = FALSE;
 
 }
 
 int delete2(char* filename) {
+
+    if (!inited) {
+	init();
+    }
+	//debug();
  
     int index_register = get_delete_register(filename, 1);
  
@@ -583,6 +666,11 @@ int delete2(char* filename) {
 }
  
 int rmdir2 (char *pathname) {
+
+	if (!inited) {
+		init();
+	}
+	//debug();
  
     int index_register = get_delete_register(pathname, 2);
    
@@ -794,7 +882,9 @@ FILE2 create_file(char *filename, int type) {
 
 	while (!found && !end_found) {
 		for ( z = 0; (z < TUPLES_PER_REGISTER-1 && !found && MFT_registers[index_register][z].atributeType > 0); z++) {
+			
 			//printf("INDEX REGISTER: %d\n", index_register);
+
 			start_block = MFT_registers[index_register][z].logicalBlockNumber;
 			start_sector = blockToFirstSector(start_block);
 			num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
@@ -802,14 +892,19 @@ FILE2 create_file(char *filename, int type) {
 			for ( k = 0; (k < num_block_tupla && !found); k++) {
 	
 				for ( j = 0 ; (j < bootBlock.blockSize && !found) ; j++ ) {
-		
+			
+					//printf("start sector: %d - j: %d - k : %d\n", start_sector, j, k);
+			
 					records = readRecordsAtSector(start_sector + j + k * bootBlock.blockSize);
 		
 					for ( i = 0; (i < SECTOR_SIZE/sizeof(struct t2fs_record) && !found); i++ ) {
 						if ( !(isValidRecord(records[i])) ) {
 							found = TRUE;
+
 							found_index_record = i;
+							//printf("found_index_record: %d\n", found_index_record);
 							found_index_sector = j + k*bootBlock.blockSize;
+							//printf("found_index_sector: %d\n", found_index_sector);
 						}
 					}
 					if (!found)
@@ -819,6 +914,9 @@ FILE2 create_file(char *filename, int type) {
 		}
 	
 		if (z == TUPLES_PER_REGISTER -1 && !found) {
+
+			//printf("FODEU\n");
+		
 			if (MFT_registers[index_register][z].atributeType == 2) {
 				index_register = MFT_registers[index_register][z].virtualBlockNumber;
 			}
@@ -861,6 +959,8 @@ FILE2 create_file(char *filename, int type) {
 			MFT_registers[index_register][z+1].logicalBlockNumber = 0;
 			MFT_registers[index_register][z+1].numberOfContiguosBlocks = 0;
 
+			//printf("OI ???\n");
+
 			memcpy((void*) buffer, (void*) &MFT_registers[index_register][0], SECTOR_SIZE);	
 			write_sector (register_to_sector(index_register), buffer);
 
@@ -882,17 +982,25 @@ FILE2 create_file(char *filename, int type) {
 		
 	}
 	
+
 	create_new_record(&records[found_index_record], names[size-1], type);
 
 	memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
- 
+ 	
+	//printf("Escrevendo no setor: %d + %d- RECORDS \n", start_sector, found_index_sector);
 	write_sector (start_sector + found_index_sector, buffer);
 
 	create_new_register(records[found_index_record].MFTNumber);
 
-	memcpy((void*) buffer, (void*) &MFT_registers[records[found_index_record].MFTNumber], SECTOR_SIZE);
+	memcpy((void*) buffer, (void*) & MFT_registers[records[found_index_record].MFTNumber][0], SECTOR_SIZE);
+	
+	//printf("Escrevendo no setor: %d- REGISTERS \n: Esse>", register_to_sector(records[found_index_record].MFTNumber));
+	//print_4tupla(MFT_registers[records[found_index_record].MFTNumber][0]);
 
-	write_sector ( register_to_sector(records[found_index_record].MFTNumber), buffer);
+	write_sector ( register_to_sector(records[found_index_record].MFTNumber), buffer);		// ISSO HOLY YES
+
+	memcpy((void*) buffer, (void*) & MFT_registers[records[found_index_record].MFTNumber][16], SECTOR_SIZE);
+	write_sector ( register_to_sector(records[found_index_record].MFTNumber)+1, buffer);
 
 	return (start_sector + found_index_sector); // Setor que o record foi escrito
 
@@ -1054,7 +1162,7 @@ int create_new_register(int index) {
 	MFT_registers[index][0].logicalBlockNumber = searchBitmap2(0);
 	setBitmap2 (MFT_registers[index][0].logicalBlockNumber, 1);
 
-	MFT_registers[index][0].numberOfContiguosBlocks = 0;
+	MFT_registers[index][0].numberOfContiguosBlocks = 1;
 
 	MFT_registers[index][1].atributeType = 0;
 	MFT_registers[index][1].virtualBlockNumber = 0;
@@ -1139,12 +1247,12 @@ struct t2fs_record* readRecordsAtSector(const int sector) {
 	int i;
 	for ( i = 0; i < SECTOR_SIZE/size_record; i++ ) { // In case of the SECTOR_SIZE changes or the t2fs_record changes, this won't break.
 
-		//memcpy((void*) &(records[i].TypeVal),        (void*) &sector_buffer[ 0 + 64*i], 1  );
-		//memcpy((void*) &(records[i].name), 	     (void*) &sector_buffer[ 1 + 64*i], 51 );
-		//memcpy((void*) &(records[i].blocksFileSize), (void*) &sector_buffer[52 + 64*i], 4  );
-		//memcpy((void*) &(records[i].bytesFileSize),  (void*) &sector_buffer[56 + 64*i], 4  );
-		//memcpy((void*) &(records[i].MFTNumber),      (void*) &sector_buffer[60 + 64*i], 4  );
-		memcpy((void*) &records[i], (void*) &sector_buffer[size_record*i], size_record);
+		memcpy((void*) &(records[i].TypeVal),        (void*) &sector_buffer[ 0 + 64*i], 1  );
+		memcpy((void*) &(records[i].name), 	     (void*) &sector_buffer[ 1 + 64*i], 51 );
+		memcpy((void*) &(records[i].blocksFileSize), (void*) &sector_buffer[52 + 64*i], 4  );
+		memcpy((void*) &(records[i].bytesFileSize),  (void*) &sector_buffer[56 + 64*i], 4  );
+		memcpy((void*) &(records[i].MFTNumber),      (void*) &sector_buffer[60 + 64*i], 4  );
+		//memcpy((void*) &records[i], (void*) &sector_buffer[size_record*i], size_record);
 
 	}
 

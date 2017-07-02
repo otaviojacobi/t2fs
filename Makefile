@@ -16,6 +16,8 @@ SRC_DIR=./src
 
 all: format compile static
 
+lib: compile statik
+
 notformat: compile static
 
 format:
@@ -29,6 +31,8 @@ compile: $(SRC_DIR)/t2fs.c
 static:	$(BIN_DIR)/t2fs.o $(LIB_DIR)/bitmap2.o $(LIB_DIR)/apidisk.o
 	$(CC) -o t2fs $(BIN_DIR)/t2fs.o $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o
 
+statik: $(BIN_DIR)/t2fs.o $(LIB_DIR)/bitmap2.o $(LIB_DIR)/apidisk.o
+	ar crs $(LIB_DIR)/libt2fs.a $(BIN_DIR)/t2fs.o $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o
 
 clean:
 	rm -rf $(LIB_DIR)/*.a $(BIN_DIR)/*.o $(SRC_DIR)/*~ $(INC_DIR)/*~ *~
