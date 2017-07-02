@@ -122,12 +122,12 @@ int main() {
 	close2(b);
 	int e = open2("/file2");
 	printf("%s\n", dentry.name);
-	char alo[1000];
-	char oi2[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-	write2(c, oi2, 450);
+	char alo[1312];
+	char oi2[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?";
+	write2(c, oi2, 1312);
 	seek2(c, 0);
-	alo[450] = 0;
-	read2(c, alo, 450);
+	alo[1312] = 0;
+	read2(c, alo, 1312);
 	printf("Alo: %s\n", alo);
 	seek2(c, 0);
 	read2(c, alo, 2);
@@ -209,7 +209,7 @@ FILE2 open2 (char *filename) {
 	
 	        }
 	    }
-	    index_register = MFT_registers[index_register][31].virtualBlockNumber;
+	    index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
 	    if (index_register < 0)
 	        break;	       
 	}
@@ -263,13 +263,11 @@ int read2 (FILE2 handle, char *buffer, int size) {
 					}
 					else {
 						if (startsize + auxsize <= SECTOR_SIZE) {
-							printf("CHEGOU0\n\n");
 							memcpy(buffer + (size-auxsize), auxbuffer+startsize, auxsize);
 							open_files[handle].byte_opened += size;
 							return 0;
 						}
 						else {
-							printf("CHEGOU1\n\n");
 							startsize = 0;
 							memcpy(buffer + (size-auxsize), auxbuffer+startsize, SECTOR_SIZE-startsize);
 							auxsize -= SECTOR_SIZE-startsize;
@@ -278,13 +276,11 @@ int read2 (FILE2 handle, char *buffer, int size) {
 				}
 				else {
 					if (auxsize <= SECTOR_SIZE) {			
-						printf("CHEGOU2\n\n");
 						memcpy(buffer + (size-auxsize), auxbuffer, auxsize);
 						open_files[handle].byte_opened += size;
 						return 0;
 					}
 					else {
-						printf("CHEGOU3\n\n");
 						memcpy(buffer + (size-auxsize), auxbuffer, SECTOR_SIZE);
 						auxsize -= SECTOR_SIZE;
 					}
@@ -293,7 +289,7 @@ int read2 (FILE2 handle, char *buffer, int size) {
 		
 		        }
 		    }
-		    index_register = MFT_registers[index_register][31].virtualBlockNumber;
+		    index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
 		    if (index_register < 0)
 		        break;	       
 		}
@@ -309,6 +305,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	int auxsize = size;
 	int startsize = open_files[handle].byte_opened;
 	char auxbuffer[SECTOR_SIZE];
+	int new_block_index;
 
 	struct t2fs_record* records;
 
@@ -322,10 +319,8 @@ int write2 (FILE2 handle, char *buffer, int size) {
 		        start_block = MFT_registers[index_register][z].logicalBlockNumber;
 		        start_sector = blockToFirstSector(start_block);
 		        num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
-			printf("CONTIGUOS: %d\n", num_block_tupla);
 		 
-		        for ( k = 0; (k < num_block_tupla); k++) {
-		 
+		        for ( k = 0; (k < num_block_tupla); k++) { 
 		            for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 		                read_sector (start_sector + j + k * bootBlock.blockSize , auxbuffer);
 				if (startsize > 0) {
@@ -334,14 +329,12 @@ int write2 (FILE2 handle, char *buffer, int size) {
 					}
 					else {
 						if (startsize + auxsize <= SECTOR_SIZE) {
-							printf("CHEGOU0\n\n");
 							memcpy(auxbuffer+startsize, buffer + (size-auxsize), auxsize);
 							open_files[handle].byte_opened += size;
-							write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);							
+							write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);
 							return 0;
 						}
 						else {
-							printf("CHEGOU1\n\n");
 							startsize = 0;
 							memcpy(auxbuffer+startsize, buffer + (size-auxsize), SECTOR_SIZE-startsize);
 							write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);	
@@ -350,15 +343,13 @@ int write2 (FILE2 handle, char *buffer, int size) {
 					}
 				}
 				else {
-					if (auxsize <= SECTOR_SIZE) {
-						printf("CHEGOU2\n\n");			
+					if (auxsize <= SECTOR_SIZE) {		
 						memcpy(auxbuffer, buffer + (size-auxsize), auxsize);
 						open_files[handle].byte_opened += size;
 						write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);
 						return 0;
 					}
 					else {
-						printf("CHEGOU3\n\n");
 						memcpy(auxbuffer, buffer + (size-auxsize), SECTOR_SIZE);
 						auxsize -= SECTOR_SIZE;
 						write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);
@@ -368,9 +359,55 @@ int write2 (FILE2 handle, char *buffer, int size) {
 		
 		        }
 		    }
-		    index_register = MFT_registers[index_register][31].virtualBlockNumber;
-		    if (index_register < 0)
-		        break;	       
+		    if (z < TUPLES_PER_REGISTER) {
+			new_block_index = searchBitmap2(0);
+			setBitmap2 (new_block_index, 1);
+
+			if (new_block_index != MFT_registers[index_register][z-1].logicalBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks) {
+				MFT_registers[index_register][z+1].atributeType = 0;
+				MFT_registers[index_register][z+1].virtualBlockNumber = 0;
+				MFT_registers[index_register][z+1].logicalBlockNumber = 0;
+				MFT_registers[index_register][z+1].numberOfContiguosBlocks = 0;
+
+				MFT_registers[index_register][z].atributeType = 1;
+				MFT_registers[index_register][z].virtualBlockNumber = MFT_registers[index_register][z-1].virtualBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks;
+				MFT_registers[index_register][z].logicalBlockNumber = new_block_index;
+				MFT_registers[index_register][z].numberOfContiguosBlocks = 0;
+			
+				z += 1;
+			}
+			while (auxsize > 0) {
+				MFT_registers[index_register][z-1].numberOfContiguosBlocks++;
+				start_block = MFT_registers[index_register][z-1].logicalBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks - 1;
+			       	start_sector = blockToFirstSector(start_block);
+				        
+				memcpy((void*) buffer, (void*) &MFT_registers[index_register][0], SECTOR_SIZE);	
+				write_sector (register_to_sector(index_register), buffer);
+	
+				memcpy((void*) buffer, (void*) &MFT_registers[index_register][16], SECTOR_SIZE);
+				write_sector (register_to_sector(index_register) + 1, buffer);	
+	
+				for (j = 0; j < bootBlock.blockSize; j++) {
+					read_sector (start_sector + j, auxbuffer);
+					if (auxsize <= SECTOR_SIZE) {		
+						memcpy(auxbuffer, buffer + (size-auxsize), auxsize);
+						open_files[handle].byte_opened += size;
+						write_sector(start_sector + j, auxbuffer);
+						return 0;
+					}
+					else {
+						memcpy(auxbuffer, buffer + (size-auxsize), SECTOR_SIZE);
+						auxsize -= SECTOR_SIZE;
+						write_sector(start_sector + j , auxbuffer);
+					}
+				}
+			}
+		    }
+		    else {
+			    index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
+			    if (index_register < 0)
+			        break;	       
+		   }
 		}
 	}
 	return -1;
@@ -406,7 +443,7 @@ int get_register_from_file (int index_register, char *filename) {
 	
 	        }
 	    }
-	    index_register = MFT_registers[index_register][31].virtualBlockNumber;
+	    index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
 	    if (index_register < 0)
 	        break;	       
 	}
@@ -492,7 +529,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry) {
 
 			}
 		}
-			index_register = MFT_registers[index_register][31].virtualBlockNumber;
+			index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
 			if (index_register < 0)
 				return -1;
 		
@@ -536,7 +573,7 @@ int delete2(char* filename) {
                 setBitmap2(start_block + k, 0);
             }
         }
-        index_register = MFT_registers[index_register][31].virtualBlockNumber;
+        index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
         if (index_register < 0)
             break;
        
@@ -581,7 +618,7 @@ int rmdir2 (char *pathname) {
                 setBitmap2(start_block + k, 0);
             }
         }
-        index_register = MFT_registers[index_register][31].virtualBlockNumber;
+        index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
         if (index_register < 0)
             break;
        
@@ -626,7 +663,7 @@ int isDirEmpty(int index_register) {
  
             }
         }
-        index_register = MFT_registers[index_register][31].virtualBlockNumber;
+        index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
         if (index_register < 0)
             break;
        
@@ -714,7 +751,7 @@ int get_delete_register (char *filename, int type) {
  
             }
         }
-        index_register = MFT_registers[index_register][31].virtualBlockNumber;
+        index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
         if (index_register < 0)
             break;
        
@@ -825,10 +862,10 @@ FILE2 create_file(char *filename, int type) {
 			MFT_registers[index_register][z+1].numberOfContiguosBlocks = 0;
 
 			memcpy((void*) buffer, (void*) &MFT_registers[index_register][0], SECTOR_SIZE);	
-			write_sector (register_to_sector(z), buffer);
+			write_sector (register_to_sector(index_register), buffer);
 
 			memcpy((void*) buffer, (void*) &MFT_registers[index_register][16], SECTOR_SIZE);
-			write_sector (register_to_sector(z) + 1, buffer);	
+			write_sector (register_to_sector(index_register) + 1, buffer);	
 
 			records = readRecordsAtSector(new_block_index);
 			start_block = new_block_index;
@@ -995,7 +1032,7 @@ struct t2fs_record* search_directory(int index_register, char *filename) {
 
 			}
 		}
-			index_register = MFT_registers[index_register][31].virtualBlockNumber;
+			index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
 			if (index_register < 0)
 				break;
 		
