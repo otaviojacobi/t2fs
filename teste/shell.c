@@ -144,13 +144,16 @@ void cmdCp(void) {
         printf ("Open source file error: %d\n", hSrc);
         return;
     }
+    
     // Cria o arquivo de destino, que será resetado se existir
     FILE2 hDst = create2 (dst);
+    hDst = open2(dst);
     if (hDst<0) {
         close2(hSrc);
         printf ("Create destination file error: %d\n", hDst);
         return;
     }
+
     // Copia os dados de source para destination
     char buffer[2];
     while( read2(hSrc, buffer, 1) == 1 ) {
@@ -444,7 +447,7 @@ void cmdLs(void) {
     // Coloca diretorio na tela
     DIRENT2 dentry;
     while ( readdir2(d, &dentry) == 0 ) {
-        printf ("%c %8u %s\n", (dentry.fileType?'d':'-'), dentry.fileSize, dentry.name);
+        printf ("%c %8u %s\n", (dentry.fileType-1?'d':'-'), dentry.fileSize, dentry.name);
     }
 
     closedir2(d);

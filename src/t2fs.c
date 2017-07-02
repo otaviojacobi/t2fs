@@ -209,7 +209,7 @@ FILE2 open2 (char *filename) {
 	for (i = 0; i<size-1; i++) {
 		record = search_directory(index_register, names[i]);
 		if (record == NULL) {
-			printf("DEU RUIM\n");
+			printf("DEU RUIM2\n");
 			return -1;
 		}
 		index_register = record->MFTNumber;
@@ -381,6 +381,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	if (size == 0)
 		return 0;
 	else {
+		//printf("maoe\n");
 		while(MFT_registers[index_register][0].atributeType!=0) {
 	 
 		    for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
@@ -401,7 +402,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 							memcpy(auxbuffer+startsize, buffer + (size-auxsize), auxsize);
 							open_files[handle].byte_opened += size;
 							write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);
-							return 0;
+							return size;
 						}
 						else {
 							startsize = 0;
@@ -416,7 +417,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 						memcpy(auxbuffer, buffer + (size-auxsize), auxsize);
 						open_files[handle].byte_opened += size;
 						write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);
-						return 0;
+						return size;
 					}
 					else {
 						memcpy(auxbuffer, buffer + (size-auxsize), SECTOR_SIZE);
@@ -462,7 +463,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 						memcpy(auxbuffer, buffer + (size-auxsize), auxsize);
 						open_files[handle].byte_opened += size;
 						write_sector(start_sector + j, auxbuffer);
-						return 0;
+						return size;
 					}
 					else {
 						memcpy(auxbuffer, buffer + (size-auxsize), SECTOR_SIZE);
@@ -534,7 +535,7 @@ DIR2 opendir2 (char *pathname) {
 	for (i = 0; i<size; i++) {
 		record = search_directory(index_register, names[i]);
 		if (record == NULL || record->TypeVal != 2) {
-			printf("DEU RUIM\n");
+			printf("DEU RUIM3\n");
 			return -1;
 		}
 		index_register = record->MFTNumber;
@@ -791,7 +792,7 @@ int get_delete_register (char *filename, int type) {
     for (i = 0; i<size-1; i++) {
         record = search_directory(index_register, names[i]);
         if (record == NULL) {
-            printf("NDEU RUIM\n");
+            printf("DEU RUIM 4\n");
             return -1;
         }
         index_register = record->MFTNumber;
@@ -819,7 +820,7 @@ int get_delete_register (char *filename, int type) {
                                 records[i].TypeVal = 0;
                            
                                 memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
-                                write_sector (start_sector + j, buffer);
+                                write_sector (start_sector + j + k * bootBlock.blockSize, buffer);
                            
                                 return records[i].MFTNumber;
                             }
@@ -830,7 +831,7 @@ int get_delete_register (char *filename, int type) {
                                 records[i].TypeVal = 0;
                            
                                 memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
-                                write_sector (start_sector + j, buffer);
+                                write_sector (start_sector + j + k * bootBlock.blockSize, buffer);
                            
                                 return records[i].MFTNumber;
  
@@ -881,6 +882,11 @@ FILE2 create_file(char *filename, int type) {
 	int index_register = find_register_from_path(filename);
 	int size;
 	char **names = split(filename, &size);
+
+	if (index_register == -1) {
+		printf("Erro. Tem certeza que digitou o path correto ?\n");
+		return -1;
+	}
 
 	if (search_directory(index_register, names[size-1]) != NULL) {
 		printf("Ja existe arquivo com mesmo nome %s.\n", filename);
@@ -1063,7 +1069,7 @@ int find_register_from_path(char *filename) {
 	for (i = 0; i<size-1; i++) {
 		record = search_directory(index_register, names[i]);
 		if (record == NULL) {
-			printf("DEU RUIM\n");
+			printf("DEU RUIM1\n");
 			return -1;
 		}
 		index_register = record->MFTNumber;
