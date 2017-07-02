@@ -301,6 +301,11 @@ int read2 (FILE2 handle, char *buffer, int size) {
 	if (size == 0)
 		return 0;
 	else {
+		//printf("Oie %d - %s - %d\n", handle, buffer, size);
+
+		//printf("OIe2 %d %d %d %s\n", open_files[handle].i_register, open_files[handle].byte_opened, open_files[handle].valido, open_files[handle].name);	
+		
+		
 		while(MFT_registers[index_register][0].atributeType!=0) {
 	 
 		    for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
@@ -320,8 +325,9 @@ int read2 (FILE2 handle, char *buffer, int size) {
 					else {
 						if (startsize + auxsize <= SECTOR_SIZE) {
 							memcpy(buffer + (size-auxsize), auxbuffer+startsize, auxsize);
-							open_files[handle].byte_opened += size;
-							return 0;
+							open_files[handle].byte_opened += size;	
+							
+							return size; // should return the number of bytes readed
 						}
 						else {
 							startsize = 0;
@@ -334,7 +340,8 @@ int read2 (FILE2 handle, char *buffer, int size) {
 					if (auxsize <= SECTOR_SIZE) {			
 						memcpy(buffer + (size-auxsize), auxbuffer, auxsize);
 						open_files[handle].byte_opened += size;
-						return 0;
+
+						return size;  //should return the number of bytes readed
 					}
 					else {
 						memcpy(buffer + (size-auxsize), auxbuffer, SECTOR_SIZE);
