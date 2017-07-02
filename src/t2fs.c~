@@ -35,6 +35,7 @@ struct t2fs_4tupla **load_MFTArea(const int MFT_register_amt, const int MFT_star
 
 struct t2fs_record* readRecordsAtSector(const int sector);
 int isValidRecord(struct t2fs_record record);
+int get_register_from_file (int index_register, char *filename, struct t2fs_record *final_record, int *found_sector, int *found_index);
 
 // Utils
 char* charArrayToString(const char* charArray, const int size);
@@ -289,7 +290,13 @@ int read2 (FILE2 handle, char *buffer, int size) {
 	//debug();
 
 // TODO: até acabar o byte size;
-	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name);
+
+	struct t2fs_record final_record;
+	int record_sector;
+	int record_index;
+
+	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name, &final_record, &record_sector, &record_index);
+
 	int z,k,j;
 	int start_sector, start_block, num_block_tupla;
 	int auxsize = size;
@@ -368,7 +375,13 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	//debug();
 
 	// TODO: COMPARE POINTER WITH END
-	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name);
+
+	struct t2fs_record final_record;
+	int record_sector;
+	int record_index;
+
+
+	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name, &final_record, &record_sector, &record_index);
 	int z,k,j;
 	int start_sector, start_block, num_block_tupla;
 	int auxsize = size;
@@ -378,12 +391,28 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
 	struct t2fs_record* records;
 
+	//printf("\n%d\n", (size- open_files[handle].byte_opened));
+
+	final_record.bytesFileSize += (size- open_files[handle].byte_opened);
+	final_record.blocksFileSize = final_record.bytesFileSize / (bootBlock.blockSize * SECTOR_SIZE); //TODO: @Arthur, do you know how to fix it ? Maybe a down there ?
+
+	records = readRecordsAtSector(record_sector);
+	memcpy(&records[record_index], &final_record, sizeof(struct t2fs_record));
+
+	char outro_buffer[SECTOR_SIZE];
+
+	memcpy((void*) outro_buffer, (void*) records,  SECTOR_SIZE);
+ 	
+	//printf("Escrevendo no setor: %d + %d- RECORDS \n", start_sector, found_index_sector);
+	write_sector (record_sector, outro_buffer);
+	
+
 	if (size == 0)
 		return 0;
 	else {
-		//printf("maoe\n");
+		
 		while(MFT_registers[index_register][0].atributeType!=0) {
-	 
+
 		    for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
 		 
 		        start_block = MFT_registers[index_register][z].logicalBlockNumber;
@@ -483,7 +512,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	return -1;
 }
 
-int get_register_from_file (int index_register, char *filename) {
+int get_register_from_file (int index_register, char *filename, struct t2fs_record *final_record, int *found_sector, int *found_index) {
 	int z,k,j,i;
    	int start_sector, start_block, num_block_tupla;
 	struct t2fs_record* records;
@@ -504,6 +533,10 @@ int get_register_from_file (int index_register, char *filename) {
 	 
 	                for ( i = 0; i < SECTOR_SIZE/sizeof(struct t2fs_record); i++ ) {
 	                    if ( isValidRecord(records[i]) && !strcmp(records[i].name, filename)) {
+	
+				memcpy( final_record, &records[i], sizeof(struct t2fs_record));
+				*found_sector = start_sector + j + k * bootBlock.blockSize;   // POCOTÓ POCOTÓ POCOTÓ
+				*found_index = i;
 	                        return records[i].MFTNumber;
 	                    }
 	                }
@@ -820,7 +853,7 @@ int get_delete_register (char *filename, int type) {
                                 records[i].TypeVal = 0;
                            
                                 memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
-                                write_sector (start_sector + j, buffer);
+                                write_sector (start_sector + j + k * bootBlock.blockSize, buffer);
                            
                                 return records[i].MFTNumber;
                             }
@@ -831,7 +864,7 @@ int get_delete_register (char *filename, int type) {
                                 records[i].TypeVal = 0;
                            
                                 memcpy((void*) buffer, (void*) records,  SECTOR_SIZE);
-                                write_sector (start_sector + j, buffer);
+                                write_sector (start_sector + j + k * bootBlock.blockSize, buffer);
                            
                                 return records[i].MFTNumber;
  
