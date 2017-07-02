@@ -50,6 +50,10 @@ struct t2fs_record* search_directory(int index_register, char *filename);
 void print_bootBlock(void);
 void print_4tupla(const struct t2fs_4tupla tuple);
 void print_record(const struct t2fs_record file_entry);
+void spacer(int nivel);
+void print_tree (int nivel, char *dir);
+void print_record(const struct t2fs_record file_entry);
+void print_all();
 
 // Globals
 struct t2fs_bootBlock bootBlock;
@@ -118,13 +122,20 @@ int main() {
 	close2(b);
 	int e = open2("/file2");
 	printf("%s\n", dentry.name);
-	char alo[100];
-	seek2(c, 5);
-	read2(c, alo, 5);
-	printf("%s\n", alo);
-	read2(c, alo, 5);
-	printf("%s\n", alo);
+	char alo[1000];
+	char oi2[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+	write2(c, oi2, 450);
+	seek2(c, 0);
+	alo[450] = 0;
+	read2(c, alo, 450);
+	printf("Alo: %s\n", alo);
+	seek2(c, 0);
+	read2(c, alo, 2);
+	alo[2] = 0;
+	printf("Alo: %s\n", alo);
+	printf("otavio gostoso\n");
 	
+	//print_all();
 	 
 	return 0;
 }
@@ -220,18 +231,20 @@ int seek2 (FILE2 handle, DWORD offset) {
 }
 
 int read2 (FILE2 handle, char *buffer, int size) {
+
+// TODO: até acabar o byte size;
 	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name);
-	printf("OLOCO JUCA: %d\n", index_register);
 	int z,k,j;
 	int start_sector, start_block, num_block_tupla;
 	int auxsize = size;
 	int startsize = open_files[handle].byte_opened;
 	char auxbuffer[SECTOR_SIZE];
+
+	struct t2fs_record* records;
+
 	if (size == 0)
 		return 0;
 	else {
-		struct t2fs_record* records;
-	
 		while(MFT_registers[index_register][0].atributeType!=0) {
 	 
 		    for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
@@ -250,24 +263,29 @@ int read2 (FILE2 handle, char *buffer, int size) {
 					}
 					else {
 						if (startsize + auxsize <= SECTOR_SIZE) {
-							memcpy(buffer, auxbuffer+startsize, auxsize);
+							printf("CHEGOU0\n\n");
+							memcpy(buffer + (size-auxsize), auxbuffer+startsize, auxsize);
 							open_files[handle].byte_opened += size;
 							return 0;
 						}
 						else {
-							startsize = 0 ;
-							memcpy(buffer, auxbuffer+startsize, SECTOR_SIZE-startsize);
+							printf("CHEGOU1\n\n");
+							startsize = 0;
+							memcpy(buffer + (size-auxsize), auxbuffer+startsize, SECTOR_SIZE-startsize);
+							auxsize -= SECTOR_SIZE-startsize;
 						}
 					}
 				}
 				else {
 					if (auxsize <= SECTOR_SIZE) {			
-						memcpy(buffer, auxbuffer, auxsize);
+						printf("CHEGOU2\n\n");
+						memcpy(buffer + (size-auxsize), auxbuffer, auxsize);
 						open_files[handle].byte_opened += size;
 						return 0;
 					}
 					else {
-						memcpy(buffer, auxbuffer, SECTOR_SIZE);
+						printf("CHEGOU3\n\n");
+						memcpy(buffer + (size-auxsize), auxbuffer, SECTOR_SIZE);
 						auxsize -= SECTOR_SIZE;
 					}
 				}
@@ -279,9 +297,83 @@ int read2 (FILE2 handle, char *buffer, int size) {
 		    if (index_register < 0)
 		        break;	       
 		}
-		
-
 	}
+	return -1;
+}
+
+int write2 (FILE2 handle, char *buffer, int size) {
+	// TODO: COMPARE POINTER WITH END
+	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name);
+	int z,k,j;
+	int start_sector, start_block, num_block_tupla;
+	int auxsize = size;
+	int startsize = open_files[handle].byte_opened;
+	char auxbuffer[SECTOR_SIZE];
+
+	struct t2fs_record* records;
+
+	if (size == 0)
+		return 0;
+	else {
+		while(MFT_registers[index_register][0].atributeType!=0) {
+	 
+		    for ( z = 0; (z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0); z++) {
+		 
+		        start_block = MFT_registers[index_register][z].logicalBlockNumber;
+		        start_sector = blockToFirstSector(start_block);
+		        num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
+			printf("CONTIGUOS: %d\n", num_block_tupla);
+		 
+		        for ( k = 0; (k < num_block_tupla); k++) {
+		 
+		            for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
+		                read_sector (start_sector + j + k * bootBlock.blockSize , auxbuffer);
+				if (startsize > 0) {
+					if (startsize >= SECTOR_SIZE) {
+						startsize -= SECTOR_SIZE;
+					}
+					else {
+						if (startsize + auxsize <= SECTOR_SIZE) {
+							printf("CHEGOU0\n\n");
+							memcpy(auxbuffer+startsize, buffer + (size-auxsize), auxsize);
+							open_files[handle].byte_opened += size;
+							write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);							
+							return 0;
+						}
+						else {
+							printf("CHEGOU1\n\n");
+							startsize = 0;
+							memcpy(auxbuffer+startsize, buffer + (size-auxsize), SECTOR_SIZE-startsize);
+							write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);	
+							auxsize -= SECTOR_SIZE-startsize;
+						}
+					}
+				}
+				else {
+					if (auxsize <= SECTOR_SIZE) {
+						printf("CHEGOU2\n\n");			
+						memcpy(auxbuffer, buffer + (size-auxsize), auxsize);
+						open_files[handle].byte_opened += size;
+						write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);
+						return 0;
+					}
+					else {
+						printf("CHEGOU3\n\n");
+						memcpy(auxbuffer, buffer + (size-auxsize), SECTOR_SIZE);
+						auxsize -= SECTOR_SIZE;
+						write_sector(start_sector + j + k * bootBlock.blockSize , auxbuffer);
+					}
+				}
+		            }
+		
+		        }
+		    }
+		    index_register = MFT_registers[index_register][31].virtualBlockNumber;
+		    if (index_register < 0)
+		        break;	       
+		}
+	}
+	return -1;
 }
 
 int get_register_from_file (int index_register, char *filename) {
@@ -1071,4 +1163,61 @@ void print_record(const struct t2fs_record file_entry) {
 	printf("%d\n", file_entry.blocksFileSize);
 	printf("%d\n", file_entry.bytesFileSize);
 	printf("%d\n", file_entry.MFTNumber);
+}
+void print_all (void) {
+    print_tree(0, "/");
+}
+
+void print_tree (int nivel, char *dir) {
+   
+    //printf("AQUI: %s\n", dir);
+    int a = opendir2(dir);
+    char name_ant[MAX_FILE_NAME_SIZE];  
+    name_ant[0] = ' ';
+ 
+    DIRENT2 dentry;
+ 
+    int k;
+ 
+    char rec_name[MAX_FILE_NAME_SIZE];
+ 
+    while(1) {
+ 
+        readdir2 (a, &dentry);          
+       
+        if( !strcmp(dentry.name, name_ant) ) {
+            break;
+        }
+ 
+       
+        if ( dentry.fileType == 1) {
+            spacer(nivel);
+            printf("%s\n", dentry.name);
+        }
+        else if( dentry.fileType == 2) {
+            spacer(nivel);
+           
+            strcpy(rec_name, "");
+ 
+            strcat(rec_name, dir);
+ 
+            if (nivel != 0) {
+                strcat(rec_name, "/");
+            }
+            strcat(rec_name, dentry.name);
+           
+            printf("%s\n", dentry.name);           
+ 
+            print_tree(nivel+1, rec_name);
+ 
+        }  
+ 
+        strcpy(name_ant, dentry.name);
+    }
+}
+void spacer(int nivel) {
+    int k;
+    for (k=0; k <nivel; k++) {  
+        printf("  ");      
+    }
 }
