@@ -24,6 +24,7 @@ void cmdMkdir(void);
 void cmdRmdir(void);
 void cmdLs(void);
 void cmdTrunc(void);
+void cmdCreate1000(void);
 
 
 static void dump(char *buffer, int size) {
@@ -74,7 +75,8 @@ int main()
             else if (strcmp(token,"mkdir")==0 || strcmp(token,"md")==0) cmdMkdir();
             else if (strcmp(token,"rmdir")==0 || strcmp(token,"rm")==0) cmdRmdir();
             else if (strcmp(token,"ls")==0 || strcmp(token,"dir")==0) cmdLs();
-	    else if (strcmp(token,"trunc")==0) cmdTrunc();
+	   		else if (strcmp(token,"trunc")==0) cmdTrunc();
+			else if (strcmp(token,"create1000")==0) cmdCreate1000();
             else printf ("???\n");
         }
     }
@@ -266,6 +268,30 @@ void cmdCreate(void) {
 
     printf ("File created with handle %d\n", hFile);
 }
+
+void cmdCreate1000(void) {
+	int i;
+	char file_name[15];
+	for (i=0; i < 1005; i++) {
+		file_name[0] = '/';
+		file_name[1] = 'd';
+		file_name[2] = 'i';
+		file_name[3] = 'r';
+		file_name[4] = 'e';
+		file_name[5] = 'r';
+		file_name[6] = 'e';
+		file_name[7] = 'z';
+		file_name[7] = (i/1000) + 48; 	// i/1000 -> 2 -> (2)
+		file_name[8] = (i/100)%10 +48;  // i/100 -> 23%10 -> (3)
+		file_name[9] = ((i/10)%100)%10+48;       // i/10 -> 234%100 -> 34%10 -> 4
+		file_name[10] = ((i%1000)%100)%10 +48;                    // i%1000 -> 345 -> %100 -> 45 -> %10 -> 5
+		file_name[11] = '\0';
+		create2(file_name);
+		//printf("OI : %s\n", file_name);
+	}
+	
+
+} 
 
 /**
 Apaga o arquivo informado no parametro
@@ -502,5 +528,4 @@ void cmdTrunc(void) {
     // show bytes read
     printf ("file-handle %d truncated to %d bytes\n", handle, size );
 }
-
 
