@@ -85,71 +85,7 @@ void init() {
 		open_files[y].valido = FALSE;
 
 	inited = TRUE;
-	//fdebug();
 
-
-	//int start_sector, start_block, num_block_tupla; // This is no way completed. We need to extend.
-
-
-	//char file_buffer[SECTOR_SIZE];
-
-	/*
-	int l;
-	char *c;
-	for(l=0; l < 4; l++) {
-		c = (char*)malloc(8);
-		c[0] = '/';
-		c[1] = 'i';
-		c[2] = 'l';
-		c[3] = 'e';
-		c[4] = l/100 + 48;
-		c[5] = (l%100)/10 + 48;
-		c[6] = l%10 + 48;
-		c[7] = '\0';
-		create2(c);
-		//printf("CRIOU ESSE: %d\n", l);
-
-	}
-	*/
-
-	/*
-        mkdir2("/dir1");
-	create2("/file1");
-	create2("oi");
-	create2("/dir1/fil2");
-	create2("/dir1/fil2");
-	mkdir2("/dir1/dir2");
-	//mkdir2("/dir1/dir2");
-	create2("/dir1/dir2/arqx");
-	delete2("/dir1/dir2/arqx");
-	//create2("/dir1/dir2/ar2");
-	int a = opendir2("/");
-	printf("LOUCO: %d\n", a);
-	DIRENT2 dentry;
-	readdir2 (a, &dentry);
-	readdir2 (a, &dentry);
-	readdir2 (a, &dentry);
-	int b = open2("/dir1/fil2");
-	int c = open2("/file1");
-	close2(b);
-	int e = open2("/file2");
-	printf("%s\n", dentry.name);
-	char alo[1312];
-	char oi2[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?";
-	write2(c, oi2, 1312);
-	seek2(c, 0);
-	alo[1312] = 0;
-	read2(c, alo, 1312);
-	printf("Alo: %s\n", alo);
-	seek2(c, 0);
-	read2(c, alo, 2);
-	alo[2] = 0;
-	printf("Alo: %s\n", alo);
-	printf("otavio gostoso\n"); */
-	
-	//print_all();
-	 
-	//return 0;
 }
 void debug() {
 	printf("que\n");
@@ -159,11 +95,75 @@ void debug() {
 }
 
 int truncate2 (FILE2 handle) {
+
+	if (!inited) {
+		init();
+	}
+
+	struct t2fs_record final_record;
+	int record_sector;
+	int record_index;
+
+	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name, &final_record, &record_sector, &record_index);
+
+	int z,k,j;
+	int start_sector, start_block, num_block_tupla;
+	int startsize = open_files[handle].byte_opened;
+
+	final_record.bytesFileSize = startsize;
+	final_record.blocksFileSize = final_record.bytesFileSize / (bootBlock.blockSize * SECTOR_SIZE);
+
+	int auxblockstart = final_record.blocksFileSize;
+
+	struct t2fs_record* records;
+
+	records = readRecordsAtSector(record_sector);
+
+	memcpy(&records[record_index], &final_record, sizeof(struct t2fs_record));
+
+	char buffer[SECTOR_SIZE];
+	char outro_buffer[SECTOR_SIZE];
+
+	memcpy((void*) outro_buffer, (void*) records,  SECTOR_SIZE);
+ 
+	write_sector (record_sector, outro_buffer);
+
+	while(MFT_registers[index_register][0].atributeType!=0) {
+ 
+	    for ( z = 0; z < TUPLES_PER_REGISTER && MFT_registers[index_register][z].atributeType > 0; z++) {
+
+		if (MFT_registers[index_register][z].numberOfContiguosBlocks <= auxblockstart){
+			auxblockstart -= MFT_registers[index_register][z].numberOfContiguosBlocks;
+		}
+		else {
+			for (j = auxblockstart ; j < MFT_registers[index_register][z].numberOfContiguosBlocks; j++)
+				setBitmap2 (MFT_registers[index_register][z].logicalBlockNumber + j, 0);
+			MFT_registers[index_register][z].atributeType = -1;
+			if (auxblockstart != 0) {
+				auxblockstart = 0;
+				MFT_registers[index_register][z].atributeType = 0;
+			}
+			memcpy((void*) buffer, (void*) &MFT_registers[index_register][0], SECTOR_SIZE);	
+			write_sector (register_to_sector(index_register), buffer);
+	
+			memcpy((void*) buffer, (void*) &MFT_registers[index_register][16], SECTOR_SIZE);
+			write_sector (register_to_sector(index_register) + 1, buffer);
+		}
+	    }
+	    index_register = MFT_registers[index_register][TUPLES_PER_REGISTER-1].virtualBlockNumber;
+            if (index_register < 0)
+		    break;	       
+	}
+
 	return 0;
 }
 
 int identify2 (char *name, int size) {
-	return 0;
+	if (!inited) {
+		init();
+	}
+
+
 }
 
 FILE2 create2 (char *filename) {
@@ -305,6 +305,9 @@ int read2 (FILE2 handle, char *buffer, int size) {
 
 	struct t2fs_record* records;
 
+	if (startsize + auxsize > final_record.bytesFileSize)
+		return -1;
+
 	if (size == 0)
 		return 0;
 	else {
@@ -322,7 +325,6 @@ int read2 (FILE2 handle, char *buffer, int size) {
 		        num_block_tupla = MFT_registers[index_register][z].numberOfContiguosBlocks;
 		 
 		        for ( k = 0; (k < num_block_tupla); k++) {
-		 
 		            for ( j = 0 ; (j < bootBlock.blockSize) ; j++ ) {
 		                read_sector (start_sector + j + k * bootBlock.blockSize , auxbuffer);
 				if (startsize > 0) {
@@ -379,6 +381,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	struct t2fs_record final_record;
 	int record_sector;
 	int record_index;
+	int end_register;
 
 
 	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name, &final_record, &record_sector, &record_index);
@@ -393,8 +396,11 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
 	//printf("\n%d\n", (size- open_files[handle].byte_opened));
 
-	final_record.bytesFileSize += size; // TODO: @Arthur socorro
-	final_record.blocksFileSize = final_record.bytesFileSize / (bootBlock.blockSize * SECTOR_SIZE); //TODO: @Arthur, do you know how to fix it ? Maybe a down there ?
+	if (final_record.bytesFileSize < startsize + size) {
+		// @TODO MEMCPY
+		final_record.bytesFileSize = startsize + size;
+		final_record.blocksFileSize = final_record.bytesFileSize / (bootBlock.blockSize * SECTOR_SIZE);
+	}
 
 	records = readRecordsAtSector(record_sector);
 	memcpy(&records[record_index], &final_record, sizeof(struct t2fs_record));
@@ -459,23 +465,42 @@ int write2 (FILE2 handle, char *buffer, int size) {
 		        }
 		    }
 		    if (z < TUPLES_PER_REGISTER) {
-			new_block_index = searchBitmap2(0);
-			setBitmap2 (new_block_index, 1);
-
-			if (new_block_index != MFT_registers[index_register][z-1].logicalBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks) {
-				MFT_registers[index_register][z+1].atributeType = 0;
-				MFT_registers[index_register][z+1].virtualBlockNumber = 0;
-				MFT_registers[index_register][z+1].logicalBlockNumber = 0;
-				MFT_registers[index_register][z+1].numberOfContiguosBlocks = 0;
-
-				MFT_registers[index_register][z].atributeType = 1;
-				MFT_registers[index_register][z].virtualBlockNumber = MFT_registers[index_register][z-1].virtualBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks;
-				MFT_registers[index_register][z].logicalBlockNumber = new_block_index;
-				MFT_registers[index_register][z].numberOfContiguosBlocks = 0;
-			
-				z += 1;
-			}
 			while (auxsize > 0) {
+
+				new_block_index = searchBitmap2(0);
+				setBitmap2 (new_block_index, 1);
+
+				if (new_block_index != MFT_registers[index_register][z-1].logicalBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks) {
+					if (z == TUPLES_PER_REGISTER) {
+						MFT_registers[index_register][z].atributeType = 2;
+				
+						end_register = get_new_register();
+						create_new_register(end_register);
+
+						MFT_registers[index_register][z].virtualBlockNumber = end_register;
+
+						memcpy((void*) buffer, (void*) &MFT_registers[index_register][0], SECTOR_SIZE);	
+						write_sector (register_to_sector(index_register), buffer);
+
+						memcpy((void*) buffer, (void*) &MFT_registers[index_register][16], SECTOR_SIZE);
+						write_sector (register_to_sector(index_register) + 1, buffer);	
+				
+						index_register = end_register;
+						z = 0;
+					}
+					MFT_registers[index_register][z+1].atributeType = 0;
+					MFT_registers[index_register][z+1].virtualBlockNumber = 0;
+					MFT_registers[index_register][z+1].logicalBlockNumber = 0;
+					MFT_registers[index_register][z+1].numberOfContiguosBlocks = 0;
+
+					MFT_registers[index_register][z].atributeType = 1;
+					MFT_registers[index_register][z].virtualBlockNumber = MFT_registers[index_register][z-1].virtualBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks;
+					MFT_registers[index_register][z].logicalBlockNumber = new_block_index;
+					MFT_registers[index_register][z].numberOfContiguosBlocks = 0;
+			
+					z += 1;
+				}
+
 				MFT_registers[index_register][z-1].numberOfContiguosBlocks++;
 				start_block = MFT_registers[index_register][z-1].logicalBlockNumber + MFT_registers[index_register][z-1].numberOfContiguosBlocks - 1;
 			       	start_sector = blockToFirstSector(start_block);
@@ -912,6 +937,8 @@ FILE2 create_file(char *filename, int type) {
 	int start_sector;
 	int num_block_tupla;
 
+	char buffer[SECTOR_SIZE];
+
 	int index_register = find_register_from_path(filename);
 	int size;
 	char **names = split(filename, &size);
@@ -976,6 +1003,13 @@ FILE2 create_file(char *filename, int type) {
 				MFT_registers[index_register][z].virtualBlockNumber = end_register;
 							// ULTRA SUPER CAVALICE-EX //-2 ARCADE EDITION: 2017/1
 				MFT_registers[end_register][0].atributeType = 0;
+
+				memcpy((void*) buffer, (void*) &MFT_registers[index_register][0], SECTOR_SIZE);	
+				write_sector (register_to_sector(index_register), buffer);
+
+				memcpy((void*) buffer, (void*) &MFT_registers[index_register][16], SECTOR_SIZE);
+				write_sector (register_to_sector(index_register) + 1, buffer);	
+				
 				index_register = end_register;
 			}
 		}
@@ -985,7 +1019,6 @@ FILE2 create_file(char *filename, int type) {
 	}
 
 	int new_block_index;
-	char buffer[SECTOR_SIZE];
 	
 	if (!found) {
 
