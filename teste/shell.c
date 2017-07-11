@@ -199,6 +199,7 @@ void cmdFscp(void) {
         }
         // Cria o arquivo de destino, que será resetado se existir
         FILE2 hDst = create2 (dst);
+	hDst = open2(dst);
         if (hDst<0) {
             fclose(hSrc);
             printf ("Create destination file error: %d\n", hDst);
