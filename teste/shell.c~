@@ -79,6 +79,7 @@ int main()
 			else if (strcmp(token,"create1000")==0) cmdCreate1000();
             else printf ("???\n");
         }
+	printf("não entendi\n");
     }
 
     return 0;
@@ -245,6 +246,7 @@ void cmdFscp(void) {
     }
 
     printf ("Files successfully copied\n");
+    return;
 }
 
 /**
@@ -514,7 +516,6 @@ void cmdTrunc(void) {
     
     // posiciona CP na posicao selecionada
     int err = seek2(handle, size);
-    printf("olaska\n");
     if (err<0) {
         printf ("Error seek2: %d\n", err);
         return;

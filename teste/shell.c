@@ -245,6 +245,7 @@ void cmdFscp(void) {
     }
 
     printf ("Files successfully copied\n");
+    return;
 }
 
 /**

@@ -163,6 +163,9 @@ int identify2 (char *name, int size) {
 		init();
 	}
 
+	memcpy(name, "Arthur Medeiros 261587 - Otavio Jacobi - 261569", size);
+	
+	return 0;
 
 }
 
