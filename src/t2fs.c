@@ -278,9 +278,22 @@ int seek2 (FILE2 handle, DWORD offset) {
 		init();
 	}
 	//debug();
+	
+	struct t2fs_record final_record;
+	int record_sector;
+	int record_index;
+	int end_register;
 
-	if (open_files[handle].valido)
+
+	int index_register = get_register_from_file(open_files[handle].i_register, open_files[handle].name, &final_record, &record_sector, &record_index);
+	
+	if (offset > final_record.bytesFileSize)
+		offset = final_record.bytesFileSize;
+
+	if (open_files[handle].valido) {
+		
 		open_files[handle].byte_opened = offset;
+	}
 	else
 		return -1;
 }
