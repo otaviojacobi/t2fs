@@ -296,6 +296,8 @@ int seek2 (FILE2 handle, DWORD offset) {
 	}
 	else
 		return -1;
+
+	return 0;
 }
 
 int read2 (FILE2 handle, char *buffer, int size) {
@@ -689,6 +691,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry) {
 				return -1;
 		
 	}
+	return -1;
 }
 
 int closedir2 (DIR2 handle)	{
@@ -699,6 +702,8 @@ int closedir2 (DIR2 handle)	{
 	//debug();
 
 	open_dirs[handle].valido = FALSE;
+
+	return 0;
 
 }
 

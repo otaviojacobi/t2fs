@@ -14,24 +14,15 @@ INC_DIR=./include
 BIN_DIR=./bin
 SRC_DIR=./src
 
-all: format compile static
 
-lib: compile statik
+all: compile static
 
-notformat: compile static
-
-format:
-	rm t2fs_disk.dat
-	cp ../t2fs_disk.dat ../t2fs
 
 compile: $(SRC_DIR)/t2fs.c
 	$(CC) -c $(SRC_DIR)/t2fs.c
 	mv t2fs.o $(BIN_DIR)
 
-static:	$(BIN_DIR)/t2fs.o $(LIB_DIR)/bitmap2.o $(LIB_DIR)/apidisk.o
-	$(CC) -o t2fs $(BIN_DIR)/t2fs.o $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o
-
-statik: $(BIN_DIR)/t2fs.o $(LIB_DIR)/bitmap2.o $(LIB_DIR)/apidisk.o
+static: $(BIN_DIR)/t2fs.o $(LIB_DIR)/bitmap2.o $(LIB_DIR)/apidisk.o
 	ar crs $(LIB_DIR)/libt2fs.a $(BIN_DIR)/t2fs.o $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o
 
 clean:
